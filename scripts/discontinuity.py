@@ -194,7 +194,6 @@ def main() -> None:
             errorbar=None,
             dodge=0.0,
             palette=custom_palette,
-            alpha=1,
         )
         ## Plot lines with connected points
         x1 = np.array(
