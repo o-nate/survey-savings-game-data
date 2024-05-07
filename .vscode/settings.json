@@ -1,0 +1,9 @@
+{
+    "workbench.colorCustomizations": {
+        "[GitHub Dark Default]": {
+          "titleBar.activeBackground": "#ff8c52c4",
+          "titleBar.activeForeground":"#000000",
+        },
+      },
+      "window.titleBarStyle": "custom"
+}
