@@ -19,6 +19,8 @@ import seaborn as sns
 from tqdm.auto import tqdm
 from preprocess import final_df_dict
 
+logging.basicConfig(level="INFO")
+
 # * Declare inflation csv file
 inf_file = Path(__file__).parents[1] / "data" / "animal_spirits.csv"
 
@@ -31,6 +33,18 @@ FINAL_FILE_PREFIX = "opp_cost"
 
 # * Declare directory of output file
 final_dir = Path(__file__).parents[1] / "data" / "preprocessed"
+
+
+def categorize_opp_cost(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Calculate opportunity costs for each possible mistake
+    (early, late and excesss purchases)
+    """
+    df["excess"] = df["s1"] - df["sreal"]
+    df["early"] = df["s2"] - df["s1"]
+    df["late"] = df["soptimal"] - df["s2"]
+
+    return df
 
 
 def savings_calc(df: pd.DataFrame, strategy: str) -> pd.DataFrame:
@@ -113,29 +127,29 @@ logging.info(
 
 # # Create time series for purchase decisions and stock
 ## Decision quantity
-df = final_df_dict["decision"].copy()
-df2 = df.melt(
+df1 = final_df_dict["decision"].copy()
+df2 = df1.melt(
     id_vars=[
         "participant.code",
         "participant.label",
         "participant.inflation",
         "participant.round",
     ],
-    value_vars=[c for c in df.columns if "decision" in c],
+    value_vars=[c for c in df1.columns if "decision" in c],
     var_name="month",
     value_name="decision",
 )
 
 ## For stock
-df = final_df_dict["finalStock"].copy()
-df3 = df.melt(
+df1 = final_df_dict["finalStock"].copy()
+df3 = df1.melt(
     id_vars=[
         "participant.code",
         "participant.label",
         "participant.inflation",
         "participant.round",
     ],
-    value_vars=[c for c in df.columns if "finalStock" in c],
+    value_vars=[c for c in df1.columns if "finalStock" in c],
     var_name="month",
     value_name="finalStock",
 )
@@ -157,16 +171,16 @@ df_prices2 = df_prices.melt(
 df_prices2["newPrice"] = df_prices2["newPrice"].apply(round_price)
 
 ## Combine dataframes
-df = pd.concat([df2, df3, df_prices2], axis=1, join="inner")
+df_combine = pd.concat([df2, df3, df_prices2], axis=1, join="inner")
 # df = df.merge(df_prices2, how="left")
 ## Remove duplicate rows and columns
-df.drop_duplicates(inplace=True)  ## Rows
-df = df.loc[:, ~df.columns.duplicated()].copy()
+df_combine.drop_duplicates(inplace=True)  ## Rows
+df_combine = df_combine.loc[:, ~df_combine.columns.duplicated()].copy()
 ## Extract month number
-df["month"] = df["month"].str.extract("(\d+)")
+df_combine["month"] = df_combine["month"].str.extract("(\d+)")
 ## Convert to int
-df = df.apply(pd.to_numeric, errors="ignore")
-df.sort_values(
+df_combine = df_combine.apply(pd.to_numeric, errors="ignore")
+df_combine.sort_values(
     [
         "participant.round",
         "participant.code",
@@ -178,36 +192,38 @@ df.sort_values(
 
 ## Categorize pre- and post-intervention
 criteria = [
-    df["participant.round"].lt(2),
+    df_combine["participant.round"].lt(2),
 ]
 choices = ["pre"]
-df["phase"] = np.select(criteria, choices, default="post")
+df_combine["phase"] = np.select(criteria, choices, default="post")
 ## Categorize inflation phases (1=high, 0=low)
 ## Months of low inflation
 inf_phases_1012 = [i for i in range(0, 121) if ((i - 1) / 12 % 2) < 1]
 inf_phases_430 = [i for i in range(0, 121) if ((i - 1) / 30 % 2) < 1]
 
 criteria = [
-    df["month"].isin(inf_phases_1012) & df["participant.inflation"].eq(1012),
-    df["month"].isin(inf_phases_430) & df["participant.inflation"].eq(430),
+    df_combine["month"].isin(inf_phases_1012)
+    & df_combine["participant.inflation"].eq(1012),
+    df_combine["month"].isin(inf_phases_430)
+    & df_combine["participant.inflation"].eq(430),
 ]
 
 choices = [0, 0]
-df["inf_phase"] = np.select(criteria, choices, default=1)
+df_combine["inf_phase"] = np.select(criteria, choices, default=1)
 
 ## Cumulative purchases
-df = df.merge(
-    df.groupby("participant.code")["decision"].cumsum(),
+df_combine = df_combine.merge(
+    df_combine.groupby("participant.code")["decision"].cumsum(),
     left_index=True,
     right_index=True,
 )
-df.rename(
+df_combine.rename(
     columns={"decision_x": "decision", "decision_y": "cum_decision"}, inplace=True
 )
 # ## Stock phase 1
 # Stock at end of of month t, removing excess purchases: SG1_t = Min(SGt, 120-t)
 # Stock at end of of month t, removing excess purchases: SG1_t = Min(SGt, 120-t)
-df_str = df.copy()
+df_str = df_combine.copy()
 
 ## Add naive and optimal strategy stocks
 df_str["sgnaive"] = 0
@@ -352,6 +368,10 @@ df_save2.sort_values(
 
 df_str = df_str.merge(df_save2, how="left")
 
+logging.info("Done, df_str shape: %s", df_str.shape)
+
+# * Calculate opportunity costs for each category: early, late, and excess
+df_str = categorize_opp_cost(df_str)
 logging.info("Done, df_str shape: %s", df_str.shape)
 
 
