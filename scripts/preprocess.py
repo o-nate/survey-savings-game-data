@@ -1,6 +1,6 @@
-"""Convert data to dataframes"""
+"""Convert data to dataframes and create summary in Excel"""
 
-import os
+import logging
 from pathlib import Path
 import re
 import time
@@ -9,17 +9,19 @@ import warnings
 import json
 
 import pandas as pd
+from openpyxl import load_workbook
 from tqdm import tqdm
 
-# # Declare file name
-FILE = "all_apps_wide_2024-04-30.csv"
+logging.basicConfig(level="DEBUG")
 
-# Declare name of output file
-FILE_PREFIX = "processed_"
+# * Declare name of file to process
+FILE = "all_apps_wide_2024-05-07.csv"
 
+# * Declare name of output file
+FINAL_FILE_PREFIX = "processed_"
 
-# do not hide rows in output cells
-pd.set_option("display.max_rows", None, "display.max_columns", None)
+# * Declare directory of output file
+final_dir = Path(__file__).parents[1] / "data" / "preprocessed"
 
 ## Disable warnings
 warnings.filterwarnings("ignore")
@@ -28,9 +30,7 @@ warnings.filterwarnings("ignore")
 pd.options.mode.chained_assignment = None  # default='warn'
 
 
-# # Participant fields, player fields, and oTree apps
-
-
+# # Participant fields, player fields, and oTree APPS
 participant_fields = [
     "code",
     "label",
@@ -57,7 +57,7 @@ participant_fields = [
     "vars_done",
 ]
 
-apps = [
+APPS = [
     "participant",
     "init",
     "Questionnaire",
@@ -75,10 +75,10 @@ apps = [
     "sessionResults",
     "redirecttopayment",
 ]
-print(f"Processing apps: {apps}")
+logging.info(f"Processing APPS: {APPS}")
 
 # Define new tables per task fields
-fields = [
+FIELDS = [
     "decision",
     "total_price",
     "initial_savings",
@@ -94,7 +94,55 @@ fields = [
     "inf_estimate",
     "inf_expectation",
 ]
-print(f"Processing task fields: {fields}")
+logging.info(f"Processing task FIELDS: {FIELDS}")
+
+COLUMNS_FOR_APPS = "participant.code|participant.label|participant.time_started_utc|participant.round|participant.intervention|"
+
+# * Filters for testing dates
+START_TS = "2024-04-30 00:00:00"
+BETWEEN_TS_1 = "2024-04-03 00:00:00"
+BETWEEN_TS_2 = "2024-05-03 23:59:59"
+
+
+def split_df(df_to_split: pd.DataFrame) -> tuple[list, dict]:
+    """Generate separate df for each app + for participant info"""
+    split_list = []
+    split_dict = {}
+    for test in APPS:
+        split_list.append(test)
+        if test == "task" or test == "task_questions":
+            split_dict[test] = df_to_split.filter(
+                regex=f"{COLUMNS_FOR_APPS}|participant.inflation|{test}."
+            )
+        else:
+            split_dict[test] = df_to_split.filter(regex=f"{COLUMNS_FOR_APPS}{test}.")
+    return split_list, split_dict
+
+
+def risk_responses(text: str) -> str:
+    """Isolate responses from string"""
+    pattern = r"\d{,} - "
+    result = re.sub(pattern, "", text)
+    return result
+
+
+def loss_responses(text: str) -> str:
+    """Remove trial id and '-' from dict key"""
+    pattern_1 = r"\d{,} - "
+    pattern_2 = r"\s₮"
+    result = re.sub(pattern_1, "", text)
+    result = re.sub(pattern_2, "", result)
+    return result
+
+
+def split_df_task(df_to_split: pd.DataFrame) -> tuple[list, dict]:
+    """Create separate dataframes for each Savings Game measure"""
+    task_split_list = []
+    task_split_dict = {}
+    for field in FIELDS:
+        task_split_list.append(field)
+        task_split_dict[field] = df_to_split.filter(regex=f"{COLUMNS_FOR_APPS}{field}$")
+    return task_split_list, task_split_dict
 
 
 # # Create df and organize
@@ -120,19 +168,18 @@ complete["participant.time_started_utc"] = pd.to_datetime(
     complete["participant.time_started_utc"]
 )
 
-# # add column with intervention
-# complete["participant.intervention"] = ""
-# complete["participant.day_3"] = complete["participant.day_3"].apply(eval)
-# for i in range(len(complete.index)):
-#     if complete["participant.day_3"].iloc[i][0] == "task_int_cx":
-#         complete["participant.intervention"].iloc[i] = "intervention"
-#     else:
-#         complete["participant.intervention"].iloc[i] = "control"
-
-# FILTER BY DATE
-FROM_TS = "2024-04-30 00:00:00"
-# after_ts = '2023-02-17 23:59:00'
-complete = complete[complete["participant.time_started_utc"] >= FROM_TS]
+# * FILTER BY DATE
+logging.info(
+    f"Filtering test dates: Before {START_TS}, between {BETWEEN_TS_1} and {BETWEEN_TS_2}."
+)
+logging.debug(complete.shape)
+complete = complete[complete["participant.time_started_utc"] >= START_TS]
+logging.debug(complete.shape)
+complete = complete[
+    (complete["participant.time_started_utc"] > BETWEEN_TS_1)
+    & (complete["participant.time_started_utc"] > BETWEEN_TS_2)
+]
+logging.debug(complete.shape)
 
 # organize rows by participant.label
 # and display corresponding codes
@@ -142,38 +189,16 @@ complete = complete.sort_values(
 participant = complete[
     ["participant.label", "participant.code", "participant.time_started_utc"]
 ]
-participant = participant.groupby(
-    ["participant.label", "participant.code", "participant.time_started_utc"]
-).all()
+# participant = participant.groupby(
+#     ["participant.label", "participant.code", "participant.time_started_utc"]
+# ).all()
 
 participant = participant.sort_values(
     ["participant.label", "participant.time_started_utc"], ascending=[False, True]
 )
 
-# participant
-
-
-# # Generate separate df for each app + for participant info
-def split_df(df):
-    for app in apps:
-        df_list.append(app)
-        if app == "task" or app == "task_questions":
-            df_dict[app] = df.filter(
-                regex=f"participant.code|participant.label|participant.time_started_utc|participant.day|participant.inflation|participant.intervention|{app}."
-            )
-        else:
-            df_dict[app] = df.filter(
-                regex=f"participant.code|participant.label|participant.time_started_utc|participant.day|participant.intervention|{app}."
-            )
-    return df_list
-
-
-df_dict = {}
-df_list = []
-
-split_df(complete)
-
-# In[390]:
+# * Split into separate dataframes from each app and measure
+df_list, df_dict = split_df(complete)
 
 
 # participant df
@@ -196,28 +221,18 @@ df_dict["task"].drop(
 
 
 # # Remove blank rows
-# (i.e. rows for other apps)
+# (i.e. rows for other APPS)
 
-# In[391]:
-# for app in tqdm(df_list, desc='Removing blank rows from apps'):
+# for app in tqdm(df_list, desc='Removing blank rows from APPS'):
 for app in df_list:
     if app != "participant":
         df_dict[app].dropna(subset=[f"{app}.1.player.id_in_group"], inplace=True)
 
 
 # # `timePreferences`: Distribute delays into individual columns for each round
-
-# In[392]:
-
-
 new_timePreferences = pd.DataFrame(
     data=df_dict["timePreferences"]["timePreferences.1.player.delay"].tolist()
 )
-new_timePreferences.head()
-
-
-# In[393]:
-
 
 new_timePreferences.rename(columns={0: "delay_order"}, inplace=True)
 
@@ -238,8 +253,6 @@ for k in range(len(new_timePreferences["dict_list"])):
 
 new_new = new_timePreferences.iloc[:, 2:]
 
-# In[394]:
-
 
 for k in range(len(new_new.index)):
     for j in range(1, 1 + len(new_new.columns)):
@@ -247,7 +260,6 @@ for k in range(len(new_new.index)):
             new_new.iloc[k][j - 1]
         )
 
-# In[395]:
 # # `riskPreferences`: Convert `raw_responses` to columns
 
 new_riskPreferences = pd.DataFrame(
@@ -256,14 +268,6 @@ new_riskPreferences = pd.DataFrame(
 new_riskPreferences.rename(columns={0: "responses"}, inplace=True)
 
 # remove trial id and '-' from dict key
-
-
-def risk_responses(text):
-    pattern = r"\d{,} - "
-    result = re.sub(pattern, "", text)
-    return result
-
-
 new_riskPreferences["responses"] = new_riskPreferences.responses.map(risk_responses)
 
 # convert str to dict
@@ -283,8 +287,6 @@ for i in range(1, 11):
 
 new_riskPreferences = new_riskPreferences[col_order]
 
-new_riskPreferences.head()
-
 # recombine with riskPreferences df
 for j in range(1, 11):
     k = j * 10
@@ -301,16 +303,6 @@ new_lossAversion = pd.DataFrame(
     data=df_dict["lossAversion"]["lossAversion.1.player.raw_responses"].tolist()
 )
 new_lossAversion.rename(columns={0: "responses"}, inplace=True)
-
-# remove trial id and '-' from dict key
-
-
-def loss_responses(text):
-    pattern_1 = r"\d{,} - "
-    pattern_2 = r"\s₮"
-    result = re.sub(pattern_1, "", text)
-    result = re.sub(pattern_2, "", result)
-    return result
 
 
 new_lossAversion["responses"] = new_lossAversion.responses.map(loss_responses)
@@ -341,9 +333,7 @@ for j in range(2, 8):
 
 df_dict["lossAversion"].head()
 
-# In[398]:
 # # Unpack `wisconsin` dict
-
 df_wisc = df_dict["wisconsin"].copy()
 df_wisc = df_wisc.dropna(axis=0)
 
@@ -355,9 +345,6 @@ df_wisc["wisconsin.1.player.response_time"] = df_wisc.dicts
 df_wisc = pd.concat(
     [df_wisc, df_wisc["wisconsin.1.player.response_time"].apply(pd.Series)], axis=1
 )
-
-# ## remove `wisconsin.1.player.response_time`
-# df_wisc = df_wisc.drop(columns=['wisconsin.1.player.response_time','participant.time_started_utc'])
 
 # create new df to break up dicts
 new = df_wisc.iloc[:, :1]
@@ -372,7 +359,6 @@ for n in range(len(df_wisc.index)):
         for i in response_dict:
             new[f"trial_{col}_{i}"] = None
 
-# %%
 # replace cell values with corresponding key:value pairs
 for n in tqdm(range(len(df_wisc.index)), desc="Wisconsin, extracting responses"):
     for col in range(1, 31):
@@ -389,14 +375,11 @@ columns = []
 for col in range(1, 31):
     df_wisc.drop(str(col), axis=1, inplace=True)
 
-# %%
 # update original df
 df_dict["wisconsin"] = df_wisc
 
 
-# In[399]:
 # # `task`: Further clean data
-
 task = df_dict["task"].copy()
 
 # Drop columns with 'day_'
@@ -405,30 +388,16 @@ task.drop(task.filter(regex="day_").columns, axis=1, inplace=True)
 # Resort by index
 task.sort_index(inplace=True)
 
-# # Convert 'participant.inflation' to list and extract corresponding day's inf sequence
-# task["participant.inflation"] = task["participant.inflation"].apply(eval)
-# for n in range(len(task.index)):
-#     day = task["participant.day"].iloc[n]
-#     task["participant.inflation"].iloc[n] = task["participant.inflation"].iloc[n][
-#         int(day) - 1
-#     ]
+# Convert 'participant.inflation' to list and extract corresponding day's inf sequence
+task["participant.inflation"] = task["participant.inflation"].apply(eval)
+for n in range(len(task.index)):
+    round_num = task["participant.round"].iloc[n]
+    task["participant.inflation"].iloc[n] = task["participant.inflation"].iloc[n][
+        int(round_num) - 1
+    ]
 
+task_df_list, task_df_dict = split_df_task(task)
 
-def split_df_task(df):
-    for field in fields:
-        task_df_list.append(field)
-        task_df_dict[field] = df.filter(
-            regex=f"participant.code|participant.label|utc|participant.day|participant.inflation|participant.intervention|{field}$"
-        )
-    return task_df_list
-
-
-task_df_dict = {}
-task_df_list = []
-
-split_df_task(task)
-
-# %%
 # Extract quantity purchased per month
 decision = task_df_dict["decision"].copy()
 
@@ -450,7 +419,6 @@ for month in tqdm(range(1, 121), desc="Extracting decision quantities"):
     decision[col] = decision[col].fillna(0)
 
 
-# %%
 task_df_dict["decision"] = decision
 
 ## Add df's to general dict and and list
@@ -494,12 +462,23 @@ final_payments["participant.day_1"] = final_payments["participant.day_1"].apply(
 #     [final_payments, final_payments["results_dict1"].apply(pd.Series)], axis=1
 # )
 
+# * Convert remunerated_behavioral dict to columns
+final_payments = pd.concat(
+    [
+        final_payments.drop(["participant.remunerated_behavioral"], axis=1),
+        final_payments["participant.remunerated_behavioral"].apply(pd.Series),
+    ],
+    axis=1,
+)
+
 final_payments.loc["Total"] = final_payments[
     [
         "participant.payoff",
         "participant.task_results_1",
         "participant.task_results_2",
-        "participant.remunerated_behavioral",
+        "wisconsin",
+        "risk_preferences",
+        "loss_aversion",
     ]
 ].sum()
 final_payments = final_payments.drop(
@@ -520,16 +499,15 @@ stats_final_payments = final_payments[
 ].describe()
 final_df_list.append("stats_final_payments")
 final_df_dict["stats_final_payments"] = stats_final_payments
-stats_final_payments
 
 print(f"Complete. Total participants included: {final_payments.shape[0] - 1 }")
 
-# %%
+
 if __name__ == "__main__":
     ## Excel of performance per session
     timestr = time.strftime("%Y%m%d-%H%M%S")
     print(timestr)
-    with pd.ExcelWriter(f"{data_dir}/performance_{timestr}.xlsx") as writer:
+    with pd.ExcelWriter(f"{final_dir}/{FINAL_FILE_PREFIX}_{timestr}.xlsx") as writer:
         participant.to_excel(writer, sheet_name="participant")
         final_df_dict["final_payments"].to_excel(writer, sheet_name="final_payments")
         for df in final_df_dict:
