@@ -105,6 +105,15 @@ BETWEEN_TS_1 = "2024-05-03 00:00:00"
 BETWEEN_TS_2 = "2024-05-03 23:59:59"
 
 
+def remove_failed_tasks(df_to_correct: pd.DataFrame) -> List[str]:
+    '''Find participants that did not complete one or more rounds of the Savings Game'''
+    to_remove = []
+    for i in range(len(df_to_correct)):
+        if df_to_correct['participant.task_results_1'].iat[i] == 0 or df_to_correct['participant.task_results_1'].iat[i] == 0:
+            to_remove.append(df_to_correct['participant.label'].iat[i])
+    return to_remove
+
+
 def split_df(df_to_split: pd.DataFrame) -> tuple[list, dict]:
     """Generate separate df for each app + for participant info"""
     split_list = []
@@ -164,8 +173,8 @@ logging.info(
 # remove rows participant.label = NaN
 complete = complete[complete["participant.label"].notna()]
 
-# # Remove rows with participant.label = bugs (due to bug)
-# complete = complete[complete["participant.label"].isin(finished)]
+# * Remove participants who did not finish
+complete = complete[complete["participant.label"].isin(finished)]
 
 # remove columns with all NaN
 complete = complete.dropna(axis=1, how="all")
