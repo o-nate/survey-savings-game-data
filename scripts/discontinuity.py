@@ -23,7 +23,7 @@ import seaborn as sns
 from calc_opp_costs import df_str
 
 # * Output settings
-logging.basicConfig(level="DEBUG")
+logging.basicConfig(level="INFO")
 pd.set_option("display.max_rows", None, "display.max_columns", None)
 
 # * Define `decision quantity` measure
@@ -101,13 +101,13 @@ def purchase_discontinuity(
 def main() -> None:
     """Run script"""
     df_disc = df_str[df_str.columns.to_list()[:12]].copy()
-    print(df_disc.head(120))
+    print(df_disc.head())
     logging.debug(df_disc.shape)
 
     df_disc = purchase_discontinuity(
         df_disc, decision_quantity=DECISION_QUANTITY, window=WINDOW
     )
-    print(df_disc.head(120))
+    print(df_disc.head())
     logging.debug(df_disc.shape)
     ## Assign starting month
     scatter_dict = {
@@ -115,12 +115,12 @@ def main() -> None:
         # "1012_2": {"month": CHANGE_1012_2, "title": "10x12 (2nd inflation increase)"},
         430: {
             "month": CHANGE_430,
-            "title": "4x30 (1st inflation increase)",
+            "title": "4x30 (Pre-treatment)",
             "phase": "pre",
         },
-        430_2: {
+        "430_2": {
             "month": CHANGE_430,
-            "title": "4x30 (1st inflation increase)",
+            "title": "4x30 (Post-treatment)",
             "phase": "post",
         },
     }
@@ -128,7 +128,8 @@ def main() -> None:
     sequence_layout = [
         # 1012,
         # "1012_2",
-        430
+        430,
+        "430_2",
     ]  ## Define which side each sequence should be on
 
     fig, axes = plt.subplots(ncols=len(sequence_layout), sharey=True, figsize=(10, 5))
@@ -139,16 +140,25 @@ def main() -> None:
     ## Loop through scatter_dict to generate dataframes for before & after figures for each sequence
     for seq, v in scatter_dict.items():
         before_after = [v["month"], (v["month"] + WINDOW)]
-        if seq != "1012_2":
+        if seq == 430 or seq == 1012:
             v["data"] = df_disc[
                 (df_disc["participant.inflation"] == seq)
                 & df_disc["month"].isin(before_after)
+                & (df_disc["phase"] == v["phase"])
+            ]
+        elif seq == "430_2":
+            v["data"] = df_disc[
+                (df_disc["participant.inflation"] == 430)
+                & df_disc["month"].isin(before_after)
+                & (df_disc["phase"] == v["phase"])
             ]
         else:
             v["data"] = df_disc[
                 (df_disc["participant.inflation"] == 1012)
                 & df_disc["month"].isin(before_after)
+                & (df_disc["phase"] == v["phase"])
             ]
+
     ## Loop through sequences and generate connected scatter plots
     for i, seq in enumerate(sequence_layout):
         data = scatter_dict[seq]["data"]
