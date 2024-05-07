@@ -96,11 +96,12 @@ FIELDS = [
 ]
 logging.info(f"Processing task FIELDS: {FIELDS}")
 
-COLUMNS_FOR_APPS = "participant.code|participant.label|participant.time_started_utc|participant.round|participant.intervention|"
+COLUMNS_FOR_APPS = "participant.code|participant.label|participant.time_started_utc"
+TASK_COLUMNS = "participant.inflation|participant.round|participant.intervention"
 
 # * Filters for testing dates
 START_TS = "2024-04-30 00:00:00"
-BETWEEN_TS_1 = "2024-04-03 00:00:00"
+BETWEEN_TS_1 = "2024-05-03 00:00:00"
 BETWEEN_TS_2 = "2024-05-03 23:59:59"
 
 
@@ -110,12 +111,14 @@ def split_df(df_to_split: pd.DataFrame) -> tuple[list, dict]:
     split_dict = {}
     for test in APPS:
         split_list.append(test)
-        if test == "task" or test == "task_questions":
+        if "task" in test:
             split_dict[test] = df_to_split.filter(
-                regex=f"{COLUMNS_FOR_APPS}|participant.inflation|{test}."
+                regex=f"{COLUMNS_FOR_APPS}|participant.inflation|participant.round|participant.intervention|{test}."
             )
         else:
-            split_dict[test] = df_to_split.filter(regex=f"{COLUMNS_FOR_APPS}{test}.")
+            split_dict[test] = df_to_split.filter(
+                regex=f"{COLUMNS_FOR_APPS}|{TASK_COLUMNS}|{test}."
+            )
     return split_list, split_dict
 
 
@@ -141,7 +144,9 @@ def split_df_task(df_to_split: pd.DataFrame) -> tuple[list, dict]:
     task_split_dict = {}
     for field in FIELDS:
         task_split_list.append(field)
-        task_split_dict[field] = df_to_split.filter(regex=f"{COLUMNS_FOR_APPS}{field}$")
+        task_split_dict[field] = df_to_split.filter(
+            regex=f"{COLUMNS_FOR_APPS}|{TASK_COLUMNS}|{field}$"
+        )
     return task_split_list, task_split_dict
 
 
@@ -149,10 +154,12 @@ def split_df_task(df_to_split: pd.DataFrame) -> tuple[list, dict]:
 # make dataframe
 parent_dir = Path(__file__).parents[1]
 data_dir = parent_dir / "data"
-print("data_dir", data_dir)
+logging.info("Data from directory %s", data_dir)
 complete = pd.read_csv(f"{data_dir}/{FILE}")
-print(f"Initial dataframe size: {complete.shape}")
-print("Removing participants who did not finish or had internet connection issues.")
+logging.info("Initial dataframe size: %s", complete.shape)
+logging.info(
+    "Removing participants who did not finish or had internet connection issues."
+)
 
 # remove rows participant.label = NaN
 complete = complete[complete["participant.label"].notna()]
@@ -176,22 +183,27 @@ logging.debug(complete.shape)
 complete = complete[complete["participant.time_started_utc"] >= START_TS]
 logging.debug(complete.shape)
 complete = complete[
-    (complete["participant.time_started_utc"] > BETWEEN_TS_1)
-    & (complete["participant.time_started_utc"] > BETWEEN_TS_2)
+    (complete["participant.time_started_utc"] < BETWEEN_TS_1)
+    | (complete["participant.time_started_utc"] > BETWEEN_TS_2)
 ]
 logging.debug(complete.shape)
 
-# organize rows by participant.label
-# and display corresponding codes
+# * Define whether participant was in intervention or control group
+## Convert tasks for day to list object
+complete["participant.day_1"] = complete["participant.day_1"].apply(eval)
+## Use list comprehension for optimization given small dataset
+complete["participant.intervention"] = [
+    True if "task_int" in day_tests else False
+    for day_tests in complete["participant.day_1"]
+]
+
+# organize rows by participant.label and display corresponding codes
 complete = complete.sort_values(
     ["participant.label", "participant.time_started_utc"], ascending=[False, True]
 )
 participant = complete[
     ["participant.label", "participant.code", "participant.time_started_utc"]
 ]
-# participant = participant.groupby(
-#     ["participant.label", "participant.code", "participant.time_started_utc"]
-# ).all()
 
 participant = participant.sort_values(
     ["participant.label", "participant.time_started_utc"], ascending=[False, True]
@@ -444,8 +456,7 @@ final_payments = final_payments[
 
 
 # convert from str to list
-final_payments["participant.day_1"] = final_payments["participant.day_1"].map(eval)
-# final_payments['participant.day_3'] = final_payments['participant.day_3'].map(eval)
+# final_payments["participant.day_1"] = final_payments["participant.day_1"].map(eval)
 final_payments["participant.remunerated_behavioral"] = final_payments[
     "participant.remunerated_behavioral"
 ].map(eval)
@@ -500,18 +511,18 @@ stats_final_payments = final_payments[
 final_df_list.append("stats_final_payments")
 final_df_dict["stats_final_payments"] = stats_final_payments
 
-print(f"Complete. Total participants included: {final_payments.shape[0] - 1 }")
+logging.info(f"Complete. Total participants included: {final_payments.shape[0] - 1 }")
 
 
 if __name__ == "__main__":
     ## Excel of performance per session
     timestr = time.strftime("%Y%m%d-%H%M%S")
-    print(timestr)
+    logging.info(timestr)
     with pd.ExcelWriter(f"{final_dir}/{FINAL_FILE_PREFIX}_{timestr}.xlsx") as writer:
         participant.to_excel(writer, sheet_name="participant")
         final_df_dict["final_payments"].to_excel(writer, sheet_name="final_payments")
         for df in final_df_dict:
             final_df_dict[df].to_excel(writer, sheet_name=f"{df}")
-            print(f"final_df_dict[{df}]")
+            logging.info(f"final_df_dict[{df}]")
 
-    print("done")
+    logging.info("done")
