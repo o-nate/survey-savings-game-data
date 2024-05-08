@@ -1,5 +1,6 @@
 # ! Ignore data from exp
 data
+results_csv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
