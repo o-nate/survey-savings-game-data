@@ -328,11 +328,9 @@ for s in strategies:
 
 ## Calculate savings balance for each strategy, `i`
 strategies = ["naive", "1", "2", "nf", "optimal", "real"]
-logging.info(
-    f"""Calculating savings balances for strategies: {', '.join(strategies)}"""
-)
+logging.info("Calculating savings balances for strategies: %s", ", ".join(strategies))
 df_str = strategy_savings_calc(strategies, df_str)
-logging.info(df_str[(df_str["month"] == 13) | (df_str["month"] == 31)].head())
+print(df_str[(df_str["month"] == 13) | (df_str["month"] == 31)].head())
 
 # ## Actual savings
 
@@ -373,6 +371,7 @@ logging.info("Done, df_str shape: %s", df_str.shape)
 # * Calculate opportunity costs for each category: early, late, and excess
 df_str = categorize_opp_cost(df_str)
 logging.info("Done, df_str shape: %s", df_str.shape)
+logging.info("Done, df_str columns: %s", df_str.columns.to_list())
 
 
 def main() -> None:
@@ -387,81 +386,85 @@ def main() -> None:
         df_str.to_csv(file_name, sep=";")
         logging.info("Created %s", file_name)
 
-    ## Convert to time series-esque dataframe for multi-bar plot
-    df_stock = df_str.melt(
-        id_vars=[
-            "participant.code",
-            "participant.label",
-            "participant.inflation",
-            "phase",
-            "month",
-        ],
-        var_name="Strategy",
-        value_vars=["participant.inflation", "finalStock", "sgoptimal", "sgnaive"],
-        value_name="Stock",
-    )
+    graph_data = input("Plot data? (y/n):")
+    if graph_data != "y" and graph_data != "n":
+        graph_data = input("Please respond with 'y' or 'n':")
+    if graph_data == "y":
+        ## Convert to time series-esque dataframe for multi-bar plot
+        df_stock = df_str.melt(
+            id_vars=[
+                "participant.code",
+                "participant.label",
+                "participant.inflation",
+                "phase",
+                "month",
+            ],
+            var_name="Strategy",
+            value_vars=["participant.inflation", "finalStock", "sgoptimal", "sgnaive"],
+            value_name="Stock",
+        )
 
-    df_savings = df_str.melt(
-        id_vars=[
-            "participant.code",
-            "participant.label",
-            "participant.inflation",
-            "phase",
-            "month",
-        ],
-        var_name="Strategy",
-        value_vars=["participant.inflation", "sreal", "soptimal", "snaive"],
-        value_name="Savings",
-    )
+        df_savings = df_str.melt(
+            id_vars=[
+                "participant.code",
+                "participant.label",
+                "participant.inflation",
+                "phase",
+                "month",
+            ],
+            var_name="Strategy",
+            value_vars=["participant.inflation", "sreal", "soptimal", "snaive"],
+            value_name="Savings",
+        )
 
-    dfts = pd.concat([df_stock, df_savings], axis=1, join="inner")
+        dfts = pd.concat([df_stock, df_savings], axis=1, join="inner")
 
-    dfts.drop_duplicates(inplace=True)
+        dfts.drop_duplicates(inplace=True)
 
-    ## Remove duplicate columns
-    dfts = dfts.loc[:, ~dfts.columns.duplicated()].copy()
+        ## Remove duplicate columns
+        dfts = dfts.loc[:, ~dfts.columns.duplicated()].copy()
 
-    ## Rename strategies
-    dfts.Strategy.replace(
-        ["finalStock", "sgnaive", "sgoptimal"],
-        ["Average", "Naive", "Optimal"],
-        inplace=True,
-    )
+        ## Rename strategies
+        dfts.Strategy.replace(
+            ["finalStock", "sgnaive", "sgoptimal"],
+            ["Average", "Naive", "Optimal"],
+            inplace=True,
+        )
 
-    fig = sns.catplot(
-        data=dfts,
-        x="month",
-        y="Stock",
-        kind="bar",
-        col="phase",
-        row="participant.inflation",
-        palette="tab10",
-        hue="Strategy",
-        legend_out=False,
-        estimator="mean",
-        errorbar=None,
-        height=5,
-        aspect=1.75,
-    )
-
-    for phase, ax in fig.axes_dict.items():
-        logging.debug(phase)
-        ax2 = ax.twinx()
-        sns.lineplot(
-            data=dfts[dfts["phase"] == phase[1]],
-            legend=None,
+        fig = sns.catplot(
+            data=dfts,
             x="month",
-            y="Savings",
+            y="Stock",
+            kind="bar",
+            col="phase",
+            row="participant.inflation",
             palette="tab10",
             hue="Strategy",
-            ci=None,
-            ax=ax2,
+            legend_out=False,
+            estimator="mean",
+            errorbar=None,
+            height=5,
+            aspect=1.75,
         )
-        ax2.set_ylim(0, dfts["Savings"].max() + 500)
 
-    ax2.set_xticks(ax2.get_xticks()[0:120:12])
-    plt.tight_layout()
-    plt.show()
+        for phase, ax in fig.axes_dict.items():
+            logging.debug(phase)
+            ax2 = ax.twinx()
+            sns.lineplot(
+                data=dfts[dfts["phase"] == phase[1]],
+                legend=None,
+                x="month",
+                y="Savings",
+                palette="tab10",
+                hue="Strategy",
+                ci=None,
+                ax=ax2,
+            )
+            ax2.set_ylim(0, dfts["Savings"].max() + 500)
+
+        ax2.set_xticks(ax2.get_xticks()[0:120:12])
+        plt.tight_layout()
+        plt.show()
 
 
 if __name__ == "__main__":
