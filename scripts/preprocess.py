@@ -202,14 +202,11 @@ logging.info(
     BETWEEN_TS_1,
     BETWEEN_TS_2,
 )
-logging.debug(complete.shape)
 complete = complete[complete["participant.time_started_utc"] >= START_TS]
-logging.debug(complete.shape)
 complete = complete[
     (complete["participant.time_started_utc"] < BETWEEN_TS_1)
     | (complete["participant.time_started_utc"] > BETWEEN_TS_2)
 ]
-logging.debug(complete.shape)
 
 # * Remove participants who did not finish Savings Game
 participants_to_remove = remove_failed_tasks(complete)
