@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 import re
 import time
+from typing import List
 import warnings
 
 import json
@@ -106,11 +107,14 @@ BETWEEN_TS_2 = "2024-05-03 23:59:59"
 
 
 def remove_failed_tasks(df_to_correct: pd.DataFrame) -> List[str]:
-    '''Find participants that did not complete one or more rounds of the Savings Game'''
+    """Find participants that did not complete one or more rounds of the Savings Game"""
     to_remove = []
-    for i in range(len(df_to_correct)):
-        if df_to_correct['participant.task_results_1'].iat[i] == 0 or df_to_correct['participant.task_results_1'].iat[i] == 0:
-            to_remove.append(df_to_correct['participant.label'].iat[i])
+    for idx in range(len(df_to_correct)):
+        if (
+            df_to_correct["participant.task_results_1"].iat[idx] == 0
+            or df_to_correct["participant.task_results_2"].iat[idx] == 0
+        ):
+            to_remove.append(df_to_correct["participant.label"].iat[idx])
     return to_remove
 
 
@@ -122,12 +126,10 @@ def split_df(df_to_split: pd.DataFrame) -> tuple[list, dict]:
         split_list.append(test)
         if "task" in test:
             split_dict[test] = df_to_split.filter(
-                regex=f"{COLUMNS_FOR_APPS}|participant.inflation|participant.round|participant.intervention|{test}."
-            )
-        else:
-            split_dict[test] = df_to_split.filter(
                 regex=f"{COLUMNS_FOR_APPS}|{TASK_COLUMNS}|{test}."
             )
+        else:
+            split_dict[test] = df_to_split.filter(regex=f"{COLUMNS_FOR_APPS}|{test}.")
     return split_list, split_dict
 
 
@@ -159,8 +161,7 @@ def split_df_task(df_to_split: pd.DataFrame) -> tuple[list, dict]:
     return task_split_list, task_split_dict
 
 
-# # Create df and organize
-# make dataframe
+# * Create initial dataframe with all data
 parent_dir = Path(__file__).parents[1]
 data_dir = parent_dir / "data"
 logging.info("Data from directory %s", data_dir)
@@ -170,16 +171,13 @@ logging.info(
     "Removing participants who did not finish or had internet connection issues."
 )
 
-# remove rows participant.label = NaN
+# * Remove rows participant.label = NaN
 complete = complete[complete["participant.label"].notna()]
 
-# * Remove participants who did not finish
-complete = complete[complete["participant.label"].isin(finished)]
-
-# remove columns with all NaN
+# * Remove columns with all NaN
 complete = complete.dropna(axis=1, how="all")
 
-# convert participant.time_started_utc value to datetime
+# * Convert participant.time_started_utc value to datetime
 complete["participant.time_started_utc"] = pd.to_datetime(
     complete["participant.time_started_utc"]
 )
@@ -196,6 +194,15 @@ complete = complete[
     | (complete["participant.time_started_utc"] > BETWEEN_TS_2)
 ]
 logging.debug(complete.shape)
+
+# * Remove participants who did not finish Savings Game
+participants_to_remove = remove_failed_tasks(complete)
+logging.info(
+    "Removing participants for not completing task: %s", participants_to_remove
+)
+complete = complete[~complete["participant.label"].isin(participants_to_remove)]
+
+# TODO Remove participants who did not finish experiment (see 4hwDGvL, D5V47dR)
 
 # * Define whether participant was in intervention or control group
 ## Convert tasks for day to list object
