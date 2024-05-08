@@ -224,6 +224,7 @@ logging.debug(
     "Participants removed for not completing full experiment: %s",
     incomplete_exp_participants,
 )
+complete = complete[~complete["participant.label"].isin(incomplete_exp_participants)]
 
 # TODO Define whether participant was in intervention or control group
 # TODO Can do so without needing to change oTree table in the future by using
