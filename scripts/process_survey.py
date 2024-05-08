@@ -13,8 +13,10 @@ from src.helpers import INF_430, INF_1012
 logging.basicConfig(level="INFO")
 
 
-def main() -> None:
-    """Run script"""
+def create_survey_df() -> pd.DataFrame:
+    """Creates a merged dataframe with the quantitative estimates (perceptions
+    and expectations) and actual inflation in a single dataframe"""
+
     # * Combine quantitative estimates into one dataframe
     df1 = final_df_dict["inf_expectation"].copy()
     df2 = final_df_dict["inf_estimate"].copy()
@@ -74,9 +76,16 @@ def main() -> None:
         inplace=True,
     )
 
+    return df_survey
+
+
+def main() -> None:
+    """Run script"""
+    data = create_survey_df()
+
     # * Plot
     g = sns.relplot(
-        data=df_survey,
+        data=data,
         x="Month",
         y="Estimate",
         errorbar=None,
