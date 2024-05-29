@@ -11,6 +11,9 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from scipy import stats
 import seaborn as sns
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import OneHotEncoder
+import statsmodels.api as sm
 
 from preprocess import final_df_dict
 from calc_opp_costs import df_str
@@ -38,6 +41,8 @@ DECISION_QUANTITY = "cum_decision"
 
 # * Define purchase window, i.e. how many months before and after inflation phase change to count
 WINDOW = 3
+
+# %%
 
 
 # %%
@@ -86,8 +91,40 @@ def main() -> None:
         df_inf[["participant.code", "participant.label", "month", "estimate"]],
         how="left",
     )
+    df_stock["stock_after"] = df_stock.groupby("participant.code")["finalStock"].shift(
+        -11
+    )
     print(df_stock.head())
     logger.debug(df_stock.info())
+
+    # * Measure Pearson correlation
+    print(
+        "Month 1 x Month 1\n",
+        df_stock[df_stock["month"] == 1]["finalStock"].corr(
+            df_stock[df_stock["month"] == 1]["estimate"]
+        ),
+    )
+
+    # * Linear regression
+    X = df_stock[(df_stock["month"] == 1) & (df_stock["estimate"].notna())][
+        ["estimate"]
+    ].to_numpy()
+    y = df_stock[(df_stock["month"] == 1) & (df_stock["estimate"].notna())][
+        ["stock_after"]
+    ].to_numpy()
+
+    ## sklearn
+    reg = LinearRegression().fit(X, y)
+    print("sklearn")
+    print("Regression score:", reg.score(X, y))
+    print("Regression coefficients:", reg.coef_)
+
+    ## statsmodels
+    x = sm.add_constant(X)  # Add constant
+    model = sm.OLS(X, y)
+    results = model.fit()
+    print("statsmodel")
+    print(results.summary())
 
     export_data = input("Export data? (y/n):")
     if export_data not in ("y", "n"):
