@@ -18,8 +18,13 @@ import pandas as pd
 import seaborn as sns
 from tqdm.auto import tqdm
 from preprocess import final_df_dict
+from src.helpers import disable_module_debug_log
 
-logging.basicConfig(level="INFO")
+# * Logging settings
+logger = logging.getLogger(__name__)
+disable_module_debug_log("warning")
+logger.setLevel(logging.DEBUG)
+
 
 # * Declare inflation csv file
 inf_file = Path(__file__).parents[1] / "data" / "animal_spirits.csv"

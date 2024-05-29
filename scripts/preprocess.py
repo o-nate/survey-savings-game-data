@@ -12,8 +12,12 @@ import json
 import pandas as pd
 from openpyxl import load_workbook
 from tqdm import tqdm
+from src.helpers import disable_module_debug_log
 
-logging.basicConfig(level="DEBUG")
+# * Logging settings
+logger = logging.getLogger(__name__)
+disable_module_debug_log("warning")
+logger.setLevel(logging.DEBUG)
 
 # * Declare name of file to process
 FILE = "all_apps_wide_2024-05-07.csv"

@@ -12,8 +12,13 @@ import seaborn as sns
 from calc_opp_costs import df_str
 from discontinuity import purchase_discontinuity
 from preprocess import final_df_dict
+from src.helpers import disable_module_debug_log
 
-logging.basicConfig(level="DEBUG")
+# * Logging settings
+logger = logging.getLogger(__name__)
+disable_module_debug_log("warning")
+logger.setLevel(logging.DEBUG)
+
 
 # * Define `decision quantity` measure
 DECISION_QUANTITY = "cum_decision"
@@ -88,6 +93,7 @@ def main() -> None:
     measures = [
         "finalSavings",
         "early",
+        "late",
         "excess",
     ]
 
@@ -154,7 +160,7 @@ def main() -> None:
             split=True,
         )
 
-        for m in ["early", "excess"]:
+        for m in ["early", "late", "excess"]:
             sns.catplot(
                 data=df_melted,
                 x="Measure",

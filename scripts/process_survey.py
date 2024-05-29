@@ -8,9 +8,12 @@ import pandas as pd
 import seaborn as sns
 
 from preprocess import final_df_dict
-from src.helpers import INF_430, INF_1012
+from src.helpers import disable_module_debug_log, INF_430
 
-logging.basicConfig(level="INFO")
+# * Logging settings
+logger = logging.getLogger(__name__)
+disable_module_debug_log("warning")
+logger.setLevel(logging.DEBUG)
 
 
 def create_survey_df() -> pd.DataFrame:
