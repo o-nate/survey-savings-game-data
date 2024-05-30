@@ -95,7 +95,17 @@ def main() -> None:
         -11
     )
     print(df_stock.head())
-    logger.debug(df_stock.info())
+    print(
+        df_stock[df_stock["month"] == 1]
+        .groupby("participant.round")[["estimate", "finalStock", "stock_after"]]
+        .describe()
+        .T
+    )
+
+    # * Imput 0% for expectation when qualitative expectation is 0
+    df_stock[df_stock["month"] == 1]["estimate"] = df_stock[df_stock["month"] == 1][
+        "estimate"
+    ].fillna(0)
 
     # * Measure Pearson correlation
     print(
@@ -104,12 +114,13 @@ def main() -> None:
             df_stock[df_stock["month"] == 1]["estimate"]
         ),
     )
+    logger.debug(df_stock.info())
 
     # * Linear regression
-    X = df_stock[(df_stock["month"] == 1) & (df_stock["estimate"].notna())][
+    X = df_stock[(df_stock["month"] == 1) & (df_stock["estimate"].notnull())][
         ["estimate"]
     ].to_numpy()
-    y = df_stock[(df_stock["month"] == 1) & (df_stock["estimate"].notna())][
+    y = df_stock[(df_stock["month"] == 1) & (df_stock["estimate"].notnull())][
         ["stock_after"]
     ].to_numpy()
 
@@ -120,7 +131,7 @@ def main() -> None:
     print("Regression coefficients:", reg.coef_)
 
     ## statsmodels
-    x = sm.add_constant(X)  # Add constant
+    # x = sm.add_constant(X)  # Add constant
     model = sm.OLS(X, y)
     results = model.fit()
     print("statsmodel")
@@ -181,6 +192,13 @@ def main() -> None:
             linewidth=1,
             linecolor="k",
             palette="tab10",
+        )
+
+        sns.jointplot(
+            data=df_stock[(df_stock["month"] == 1)],
+            x="estimate",
+            y="stock_after",
+            hue="participant.round",
         )
 
         plt.show()
