@@ -2,6 +2,7 @@
 
 import logging
 
+from functools import reduce
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -17,22 +18,28 @@ logger.setLevel(logging.DEBUG)
 
 
 def create_survey_df() -> pd.DataFrame:
-    """Creates a merged dataframe with the quantitative estimates (perceptions
+    """Creates a merged dataframe with the estimates (perceptions
     and expectations) and actual inflation in a single dataframe"""
 
-    # * Combine quantitative estimates into one dataframe
+    # * Combine estimates into one dataframe
     df1 = final_df_dict["inf_expectation"].copy()
     df2 = final_df_dict["inf_estimate"].copy()
-    df3 = df1.merge(df2, how="left")
-    logging.debug(df3.columns.to_list())
-    df_survey = df3.melt(
+    df3 = final_df_dict["qualitative_expectation"].copy()
+    df4 = final_df_dict["qualitative_estimate"].copy()
+    dfs = [df1, df2, df3, df4]
+    df5 = reduce(
+        lambda df_left, df_right: pd.merge(df_left, df_right, how="left"),
+        dfs,
+    )
+    logger.debug(df5.columns.to_list())
+    df_survey = df5.melt(
         id_vars=[
             "participant.code",
             "participant.label",
             "participant.inflation",
             "participant.round",
         ],
-        value_vars=[c for c in df3.columns if "inf_" in c],
+        value_vars=[c for c in df5.columns if ("inf_" in c) or ("qualitative_" in c)],
         var_name="Measure",
         value_name="Estimate",
     )
@@ -45,10 +52,22 @@ def create_survey_df() -> pd.DataFrame:
     # * Rename measures
     df_survey["Measure"] = df_survey["Measure"].str.split("player.").str[1]
     df_survey["Measure"].replace(
-        ["inf_estimate", "inf_expectation"],
-        ["Perception", "Expectation"],
+        [
+            "inf_estimate",
+            "inf_expectation",
+            "qualitative_estimate",
+            "qualitative_expectation",
+        ],
+        [
+            "Quant Perception",
+            "Quant Expectation",
+            "Qual Perception",
+            "Qual Expectation",
+        ],
         inplace=True,
     )
+    logger.debug(df_survey.info())
+    print(df_survey.head())
 
     # * Add actual inflation
     inf_dict = {
@@ -86,9 +105,33 @@ def main() -> None:
     """Run script"""
     data = create_survey_df()
 
-    # * Plot
+    # * Plot qualitative responses
+    qual_responses = ["Qual Perception", "Qual Expectation"]
+    print(data[data["Measure"].isin(qual_responses)].head())
+    # hue = (
+    #     data[data["Measure"].isin(qual_responses)]["participant.round"].astype(str)
+    #     + ", "
+    #     + data[data["Measure"].isin(qual_responses)]["Measure"].astype(str)
+    # )
+    # logger.debug("%s vs %s", len(hue), len(data[data["Measure"].isin(qual_responses)]))
+    g = sns.FacetGrid(
+        data=data[data["Measure"].isin(qual_responses)],
+        col="Month",
+        height=2.5,
+        col_wrap=3,
+        hue="Measure",
+    )
+    g.map(
+        sns.histplot,
+        "Estimate",
+        multiple="dodge",
+        shrink=0.8,
+    )
+
+    # * Plot estimates over time
+    estimates = ["Quant Perception", "Quant Expectation", "Actual", "Upcoming"]
     g = sns.relplot(
-        data=data,
+        data=data[data["Measure"].isin(estimates)],
         x="Month",
         y="Estimate",
         errorbar=None,
