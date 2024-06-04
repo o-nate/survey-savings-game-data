@@ -14,6 +14,7 @@ import seaborn as sns
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import OneHotEncoder
 import statsmodels.api as sm
+import statsmodels.formula.api as smf
 
 from preprocess import final_df_dict
 from calc_opp_costs import df_str
@@ -108,13 +109,19 @@ def main() -> None:
     ].fillna(0)
 
     # * Measure Pearson correlation
+    print("\nPearson Correlations")
     print(
         "Month 1 x Month 1\n",
         df_stock[df_stock["month"] == 1]["finalStock"].corr(
             df_stock[df_stock["month"] == 1]["estimate"]
         ),
     )
-    logger.debug(df_stock.info())
+    print(
+        "Month 1 x Month 12\n",
+        df_stock[df_stock["month"] == 1]["stock_after"].corr(
+            df_stock[df_stock["month"] == 1]["estimate"]
+        ),
+    )
 
     # * Linear regression
     X = df_stock[(df_stock["month"] == 1) & (df_stock["estimate"].notnull())][
@@ -132,7 +139,10 @@ def main() -> None:
 
     ## statsmodels
     # x = sm.add_constant(X)  # Add constant
-    model = sm.OLS(X, y)
+    data = df_stock[(df_stock["month"] == 1) & (df_stock["estimate"].notnull())][
+        ["estimate", "stock_after"]
+    ]
+    model = smf.ols(formula="stock_after ~ estimate", data=data)
     results = model.fit()
     print("statsmodel")
     print(results.summary())
@@ -200,6 +210,12 @@ def main() -> None:
             y="stock_after",
             hue="participant.round",
         )
+
+        fig, (ax1, ax2) = plt.subplots(nrows=2, ncols=1)
+        ax1 = sm.graphics.influence_plot(results)
+        ax2 = sm.graphics.plot_regress_exog(results, "estimate")
+
+        fig.tight_layout(pad=1.0)
 
         plt.show()
 
