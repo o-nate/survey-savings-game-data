@@ -105,48 +105,52 @@ def main() -> None:
     """Run script"""
     data = create_survey_df()
 
-    # * Plot qualitative responses
-    qual_responses = ["Qual Perception", "Qual Expectation"]
-    print(data[data["Measure"].isin(qual_responses)].head())
-    # hue = (
-    #     data[data["Measure"].isin(qual_responses)]["participant.round"].astype(str)
-    #     + ", "
-    #     + data[data["Measure"].isin(qual_responses)]["Measure"].astype(str)
+    # # * Plot qualitative responses
+    # qual_responses = ["Qual Perception", "Qual Expectation"]
+    # print(data[data["Measure"].isin(qual_responses)].head())
+    # # hue = (
+    # #     data[data["Measure"].isin(qual_responses)]["participant.round"].astype(str)
+    # #     + ", "
+    # #     + data[data["Measure"].isin(qual_responses)]["Measure"].astype(str)
+    # # )
+    # # logger.debug("%s vs %s", len(hue), len(data[data["Measure"].isin(qual_responses)]))
+    # h = sns.FacetGrid(
+    #     data=data[data["Measure"].isin(qual_responses)],
+    #     col="Month",
+    #     height=2.5,
+    #     col_wrap=3,
+    #     hue="Measure",
     # )
-    # logger.debug("%s vs %s", len(hue), len(data[data["Measure"].isin(qual_responses)]))
-    g = sns.FacetGrid(
-        data=data[data["Measure"].isin(qual_responses)],
-        col="Month",
-        height=2.5,
-        col_wrap=3,
-        hue="Measure",
-    )
-    g.map(
-        sns.histplot,
-        "Estimate",
-        multiple="dodge",
-        shrink=0.8,
-    )
+    # h.map(
+    #     sns.histplot,
+    #     "Estimate",
+    #     multiple="dodge",
+    #     shrink=0.8,
+    # )
 
     # * Plot estimates over time
     estimates = ["Quant Perception", "Quant Expectation", "Actual", "Upcoming"]
-    g = sns.relplot(
-        data=data[data["Measure"].isin(estimates)],
-        x="Month",
-        y="Estimate",
-        errorbar=None,
-        hue="Measure",
-        style="Measure",
-        kind="line",
-        col="participant.round",
-    )
+    # g = sns.relplot(
+    #     data=data[data["Measure"].isin(estimates)],
+    #     x="Month",
+    #     y="Estimate",
+    #     errorbar=None,
+    #     hue="Measure",
+    #     style="Measure",
+    #     kind="line",
+    #     col="participant.round",
+    # )
 
-    ## Adjust titles
-    (
-        g.set_axis_labels("Month", "Inflation rate (%)")
-        .set_titles("Savings Game round: {col_name}")
-        .tight_layout(w_pad=0.5)
-    )
+    # ## Adjust titles
+    # (
+    #     g.set_axis_labels("Month", "Inflation rate (%)")
+    #     .set_titles("Savings Game round: {col_name}")
+    #     .tight_layout(w_pad=0.5)
+    # )
+
+    sns.kdeplot(data=data[data["Measure"].isin(estimates)], x="Estimate", hue="Measure")
+    plt.yscale("log")
+    plt.xscale("log")
 
     plt.show()
 
