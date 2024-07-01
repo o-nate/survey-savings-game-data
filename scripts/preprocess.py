@@ -20,7 +20,7 @@ disable_module_debug_log("warning")
 logger.setLevel(logging.DEBUG)
 
 # * Declare name of file to process
-FILE = "all_apps_wide_2024-05-07.csv"
+FILE = "all_apps_wide_2024-06-21.csv"
 
 # * Declare name of output file
 FINAL_FILE_PREFIX = "processed_"
@@ -108,6 +108,8 @@ TASK_COLUMNS = "participant.inflation|participant.round|participant.intervention
 START_TS = "2024-04-30 00:00:00"
 BETWEEN_TS_1 = "2024-05-03 00:00:00"
 BETWEEN_TS_2 = "2024-05-03 23:59:59"
+BETWEEN_TS_3 = "2024-05-07 00:00:00"
+BETWEEN_TS_4 = "2024-06-20 00:00:00"
 
 # * Filter participants who did not complete the entire experiment (total tasks complete)
 EXP_TASK_COMPLETE = 12
@@ -201,15 +203,20 @@ complete["participant.time_started_utc"] = pd.to_datetime(
 
 # * FILTER BY DATE
 logging.info(
-    "Filtering test dates: Before %s, between %s and %s.",
+    "Filtering test dates: Before %s, between %s and %s, and after %s.",
     START_TS,
     BETWEEN_TS_1,
     BETWEEN_TS_2,
+    BETWEEN_TS_3,
 )
 complete = complete[complete["participant.time_started_utc"] >= START_TS]
 complete = complete[
     (complete["participant.time_started_utc"] < BETWEEN_TS_1)
-    | (complete["participant.time_started_utc"] > BETWEEN_TS_2)
+    | (
+        (complete["participant.time_started_utc"] > BETWEEN_TS_2)
+        & (complete["participant.time_started_utc"] < BETWEEN_TS_3)
+    )
+    | (complete["participant.time_started_utc"] > BETWEEN_TS_4)
 ]
 
 # * Remove participants who did not finish Savings Game
@@ -219,7 +226,6 @@ logging.info(
 )
 complete = complete[~complete["participant.label"].isin(participants_to_remove)]
 
-# TODO Remove participants who did not finish experiment (see 4hwDGvL, D5V47dR)
 incomplete_exp_participants = remove_exp_incomplete(complete)
 logging.debug(
     "Participants removed for not completing full experiment: %s",

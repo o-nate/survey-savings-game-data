@@ -131,16 +131,20 @@ logging.info(
       Initial endowment: {ENDOWMENT}, Interest rate: {INTEREST}, Wage: {WAGE}"
 )
 
+## Columns to pull from original dataframes
+MELT_COLS = [
+    "participant.code",
+    "participant.label",
+    "participant.time_started_utc",
+    "participant.inflation",
+    "participant.round",
+]
+
 # # Create time series for purchase decisions and stock
 ## Decision quantity
 df1 = final_df_dict["decision"].copy()
 df2 = df1.melt(
-    id_vars=[
-        "participant.code",
-        "participant.label",
-        "participant.inflation",
-        "participant.round",
-    ],
+    id_vars=MELT_COLS,
     value_vars=[c for c in df1.columns if "decision" in c],
     var_name="month",
     value_name="decision",
@@ -149,12 +153,7 @@ df2 = df1.melt(
 ## For stock
 df1 = final_df_dict["finalStock"].copy()
 df3 = df1.melt(
-    id_vars=[
-        "participant.code",
-        "participant.label",
-        "participant.inflation",
-        "participant.round",
-    ],
+    id_vars=MELT_COLS,
     value_vars=[c for c in df1.columns if "finalStock" in c],
     var_name="month",
     value_name="finalStock",
@@ -163,12 +162,7 @@ df3 = df1.melt(
 ## Add price column
 df_prices = final_df_dict["newPrice"].copy()
 df_prices2 = df_prices.melt(
-    id_vars=[
-        "participant.code",
-        "participant.label",
-        "participant.inflation",
-        "participant.round",
-    ],
+    id_vars=MELT_COLS,
     value_vars=[c for c in df_prices.columns if "newPrice" in c],
     var_name="month",
     value_name="newPrice",
@@ -184,8 +178,13 @@ df_combine.drop_duplicates(inplace=True)  ## Rows
 df_combine = df_combine.loc[:, ~df_combine.columns.duplicated()].copy()
 ## Extract month number
 df_combine["month"] = df_combine["month"].str.extract("(\d+)")
-## Convert to int
-df_combine = df_combine.apply(pd.to_numeric, errors="ignore")
+## Convert columns to int, except participant.time_started_utc
+cols_to_convert = [
+    c for c in df_combine.columns if c is not "participant.time_started_utc"
+]
+df_combine[cols_to_convert] = df_combine[cols_to_convert].apply(
+    pd.to_numeric, errors="ignore"
+)
 df_combine.sort_values(
     [
         "participant.round",
@@ -396,11 +395,17 @@ def main() -> None:
     if graph_data != "y" and graph_data != "n":
         graph_data = input("Please respond with 'y' or 'n':")
     if graph_data == "y":
+        # * Convert datetime to date
+        df_str["date"] = df_str["participant.time_started_utc"].dt.normalize()
+        # # ! Filter for just 20-06-2024
+        # df_str = df_str[df_str["date"] >= "2024-06-20"]
+        print(f"{df_str['participant.label'].nunique()} participants included")
         ## Convert to time series-esque dataframe for multi-bar plot
         df_stock = df_str.melt(
             id_vars=[
                 "participant.code",
                 "participant.label",
+                "date",
                 "participant.inflation",
                 "phase",
                 "month",
@@ -414,6 +419,7 @@ def main() -> None:
             id_vars=[
                 "participant.code",
                 "participant.label",
+                "date",
                 "participant.inflation",
                 "phase",
                 "month",
@@ -443,7 +449,7 @@ def main() -> None:
             y="Stock",
             kind="bar",
             col="phase",
-            row="participant.inflation",
+            row="date",
             palette="tab10",
             hue="Strategy",
             legend_out=False,

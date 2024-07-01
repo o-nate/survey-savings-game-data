@@ -36,6 +36,7 @@ def create_survey_df() -> pd.DataFrame:
         id_vars=[
             "participant.code",
             "participant.label",
+            "participant.time_started_utc",
             "participant.inflation",
             "participant.round",
         ],
@@ -46,8 +47,14 @@ def create_survey_df() -> pd.DataFrame:
 
     # * Extract month number
     df_survey["Month"] = df_survey["Measure"].str.extract("(\d+)")
-    ## Convert to int
-    df_survey = df_survey.apply(pd.to_numeric, errors="ignore")
+
+    # * Convert columns to int, except participant.time_started_utc
+    cols_to_convert = [
+        c for c in df_survey.columns if c != "participant.time_started_utc"
+    ]
+    df_survey[cols_to_convert] = df_survey[cols_to_convert].apply(
+        pd.to_numeric, errors="ignore"
+    )
 
     # * Rename measures
     df_survey["Measure"] = df_survey["Measure"].str.split("player.").str[1]
@@ -105,52 +112,60 @@ def main() -> None:
     """Run script"""
     data = create_survey_df()
 
+    # * Convert datetime to date
+    data["date"] = data["participant.time_started_utc"].dt.normalize()
+
+    # # ! Filter for just 20-06-2024
+    # data = data[data["date"] >= "2024-06-20"]
+    print(data["participant.label"].nunique())
+
     # # * Plot qualitative responses
-    # qual_responses = ["Qual Perception", "Qual Expectation"]
-    # print(data[data["Measure"].isin(qual_responses)].head())
-    # # hue = (
-    # #     data[data["Measure"].isin(qual_responses)]["participant.round"].astype(str)
-    # #     + ", "
-    # #     + data[data["Measure"].isin(qual_responses)]["Measure"].astype(str)
-    # # )
-    # # logger.debug("%s vs %s", len(hue), len(data[data["Measure"].isin(qual_responses)]))
-    # h = sns.FacetGrid(
-    #     data=data[data["Measure"].isin(qual_responses)],
-    #     col="Month",
-    #     height=2.5,
-    #     col_wrap=3,
-    #     hue="Measure",
+    qual_responses = ["Qual Perception", "Qual Expectation"]
+    print(data[data["Measure"].isin(qual_responses)].head())
+    # hue = (
+    #     data[data["Measure"].isin(qual_responses)]["participant.round"].astype(str)
+    #     + ", "
+    #     + data[data["Measure"].isin(qual_responses)]["Measure"].astype(str)
     # )
-    # h.map(
-    #     sns.histplot,
-    #     "Estimate",
-    #     multiple="dodge",
-    #     shrink=0.8,
-    # )
+    # logger.debug("%s vs %s", len(hue), len(data[data["Measure"].isin(qual_responses)]))
+    h = sns.FacetGrid(
+        data=data[data["Measure"].isin(qual_responses)],
+        col="Month",
+        height=2.5,
+        col_wrap=3,
+        hue="Measure",
+    )
+    h.map(
+        sns.histplot,
+        "Estimate",
+        multiple="dodge",
+        shrink=0.8,
+    )
 
     # * Plot estimates over time
     estimates = ["Quant Perception", "Quant Expectation", "Actual", "Upcoming"]
-    # g = sns.relplot(
-    #     data=data[data["Measure"].isin(estimates)],
-    #     x="Month",
-    #     y="Estimate",
-    #     errorbar=None,
-    #     hue="Measure",
-    #     style="Measure",
-    #     kind="line",
-    #     col="participant.round",
-    # )
+    g = sns.relplot(
+        data=data[data["Measure"].isin(estimates)],
+        x="Month",
+        y="Estimate",
+        errorbar=None,
+        hue="Measure",
+        style="Measure",
+        kind="line",
+        row="participant.round",
+        col="date",
+    )
 
-    # ## Adjust titles
-    # (
-    #     g.set_axis_labels("Month", "Inflation rate (%)")
-    #     .set_titles("Savings Game round: {col_name}")
-    #     .tight_layout(w_pad=0.5)
-    # )
+    ## Adjust titles
+    (
+        g.set_axis_labels("Month", "Inflation rate (%)")
+        .set_titles("Savings Game round: {col_name}")
+        .tight_layout(w_pad=0.5)
+    )
 
-    sns.kdeplot(data=data[data["Measure"].isin(estimates)], x="Estimate", hue="Measure")
-    plt.yscale("log")
-    plt.xscale("log")
+    # sns.kdeplot(data=data[data["Measure"].isin(estimates)], x="Estimate", hue="Measure")
+    # plt.yscale("log")
+    # plt.xscale("log")
 
     plt.show()
 

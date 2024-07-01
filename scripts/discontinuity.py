@@ -100,14 +100,27 @@ def purchase_discontinuity(
 
 def main() -> None:
     """Run script"""
-    df_disc = df_str[df_str.columns.to_list()[:12]].copy()
+    df_disc = df_str[df_str.columns.to_list()[:13]].copy()
+    df_disc["date"] = df_disc["participant.time_started_utc"].dt.normalize()
     print(df_disc.head())
     logging.debug(df_disc.shape)
 
     df_disc = purchase_discontinuity(
         df_disc, decision_quantity=DECISION_QUANTITY, window=WINDOW
     )
+
+    # ! Filter for just 20/6/2024
+    df_disc = df_disc[df_disc["date"] >= "2024-06-20"]
+    print("-------------------------------------------------------------")
+    print(f"{df_disc['participant.label'].nunique()} participants included")
     print(df_disc.head())
+    print("-------------------------------------------------------------")
+    print(
+        df_disc[df_disc["month"] == 120]
+        .groupby("participant.round")[["avg_q", "avg_q_%"]]
+        .describe()
+        .T
+    )
     logging.debug(df_disc.shape)
     ## Assign starting month
     scatter_dict = {

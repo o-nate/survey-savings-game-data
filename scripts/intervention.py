@@ -1,6 +1,7 @@
 """Script to analyze intervention's effect"""
 
 import logging
+import sys
 from typing import List
 
 import matplotlib.pyplot as plt
@@ -18,6 +19,7 @@ from src.helpers import disable_module_debug_log
 logger = logging.getLogger(__name__)
 disable_module_debug_log("warning")
 logger.setLevel(logging.DEBUG)
+logger.addHandler(logging.StreamHandler(sys.stdout))
 
 
 # * Define `decision quantity` measure
@@ -27,10 +29,30 @@ DECISION_QUANTITY = "cum_decision"
 WINDOW = 3
 
 
+def measure_intervention_impact(
+    data: pd.DataFrame, measures_impacted: List[str]
+) -> None:
+    """Print comparison of performance before and after intervention with p values"""
+    for m in measures_impacted:
+        before = data[(data["phase"] == "pre")][m]
+        after = data[(data["phase"] == "post")][m]
+        p_value = stats.wilcoxon(
+            before, after, zero_method="zsplit", nan_policy="raise"
+        )[1]
+        print(f"Initial {m}: {before.mean()}")
+        print(f"Final {m}: {after.mean()}")
+        print(
+            f"Change in {m}:",
+            after.mean() - before.mean(),
+        )
+        print(f"p value for change in {m}:\t{p_value}")
+
+
 def measure_feedback_impact(
     data: pd.DataFrame, measures_impacted: List[str], error_feedback: List[str]
 ) -> None:
-    """Print comparison between those who are convinced by intervention feedback and not across measures"""
+    """Print comparison between those who are convinced by intervention feedback
+    and not across measures"""
     for m in measures_impacted:
         for error in error_feedback:
             convinced_response = 9 if error == "convinced" else 3
@@ -77,6 +99,10 @@ def measure_feedback_impact(
 def main() -> None:
     """Run script"""
     df_int = final_df_dict["task_int"].copy()
+
+    # * Convert datetime to date
+    df_int["date"] = df_int["participant.time_started_utc"].dt.normalize()
+
     df_results = df_str.copy()
     logging.debug(df_results.shape)
 
@@ -99,20 +125,34 @@ def main() -> None:
 
     data_df = df_results[df_results["month"] == 120].copy()
     logging.debug(data_df.shape)
-    data_df = data_df.merge(df_int[["participant.label"] + cols], how="left")
-    logging.debug(data_df.shape)
+    data_df = data_df.merge(df_int[["participant.label", "date"] + cols], how="left")
+
+    # ! Filter for just 20-06-2024
+    data_df = data_df[data_df["date"] >= "2024-06-20"]
+    print(data_df.shape)
+
     data_df["convinced"] = data_df[[c for c in data_df.columns if "confirm" in c]].sum(
         axis=1
     )
     logging.debug([c for c in data_df.columns if "confirm" in c])
-    print(data_df[["participant.label"] + cols + ["convinced"]].head())
+    print(data_df.head())
 
-    ## Fully convinced
-    measure_feedback_impact(data_df, measures, ["convinced"])
+    # * Measure intervention impact
+    measure_intervention_impact(data_df, measures)
 
-    ## Mostly convinced
-    errors = ["early", "excess"]
-    measure_feedback_impact(data_df, measures, errors)
+    # * Measure impact of intervention feedback
+    measure_feedback = input("Measure impact of intervention feedback? (y/n):")
+    if measure_feedback not in ["y", "n"]:
+        measure_feedback = input("Please respond with 'y' or 'n':")
+    elif measure_feedback == "n":
+        pass
+    else:
+        ## Fully convinced
+        measure_feedback_impact(data_df, measures, ["convinced"])
+
+        ## Mostly convinced
+        errors = ["early", "excess"]
+        measure_feedback_impact(data_df, measures, errors)
 
     graph_data = input("Plot intervention data? (y/n):")
     if graph_data != "y" and graph_data != "n":
@@ -122,6 +162,7 @@ def main() -> None:
             id_vars=[
                 "participant.code",
                 "participant.label",
+                "date",
                 "participant.round",
                 "convinced",
                 "task_int.1.player.confirm_early",
@@ -150,6 +191,18 @@ def main() -> None:
             for answer in df_melted["task_int.1.player.confirm_excess"]
         ]
 
+        # * Plots by date
+        sns.catplot(
+            data=df_melted,
+            x="Measure",
+            y="Result",
+            col="date",
+            hue="participant.round",
+            kind="violin",
+            split=True,
+        )
+
+        # * Plots by being convinced overall
         sns.catplot(
             data=df_melted,
             x="Measure",
@@ -177,7 +230,7 @@ def main() -> None:
     if graph_data != "y" and graph_data != "n":
         graph_data = input("Please respond with 'y' or 'n':")
     if graph_data == "y":
-        df_melted = df_int.melt(
+        data = df_int.melt(
             id_vars=[
                 "participant.code",
                 "participant.label",
@@ -186,8 +239,17 @@ def main() -> None:
             var_name="Measure",
             value_name="Result",
         )
-        g = sns.FacetGrid(df_melted, row="Measure")
+
+        g = sns.FacetGrid(data, row="Measure")
         g.map(plt.hist, "Result")
+
+        # h = sns.FacetGrid(
+        #     data=data[data["Measure"].isin(cols)],
+        #     col="Month",
+        #     height=2.5,
+        #     col_wrap=3,
+        #     hue="Measure",
+        # )
         plt.show()
 
 
