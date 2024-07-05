@@ -3,6 +3,7 @@
 import logging
 from pathlib import Path
 import re
+import sys
 import time
 from typing import List
 import warnings
@@ -18,9 +19,10 @@ from src.helpers import disable_module_debug_log
 logger = logging.getLogger(__name__)
 disable_module_debug_log("warning")
 logger.setLevel(logging.DEBUG)
+logger.addHandler(logging.StreamHandler(sys.stdout))
 
 # * Declare name of file to process
-FILE = "all_apps_wide_2024-06-21.csv"
+FILE = "all_apps_wide_2024-07-04.csv"
 
 # * Declare name of output file
 FINAL_FILE_PREFIX = "processed_"
@@ -80,7 +82,7 @@ APPS = [
     "sessionResults",
     "redirecttopayment",
 ]
-logging.info("Processing APPS: %s", APPS)
+logger.info("Processing APPS: %s", APPS)
 
 # Define new tables per task fields
 FIELDS = [
@@ -99,7 +101,7 @@ FIELDS = [
     "inf_estimate",
     "inf_expectation",
 ]
-logging.info("Processing task FIELDS: %s", FIELDS)
+logger.info("Processing task FIELDS: %s", FIELDS)
 
 COLUMNS_FOR_APPS = "participant.code|participant.label|participant.time_started_utc"
 TASK_COLUMNS = "participant.inflation|participant.round|participant.intervention"
@@ -183,15 +185,19 @@ def split_df_task(df_to_split: pd.DataFrame) -> tuple[list, dict]:
 # * Create initial dataframe with all data
 parent_dir = Path(__file__).parents[1]
 data_dir = parent_dir / "data"
-logging.info("Data from directory %s", data_dir)
+logger.info("Data from directory %s", data_dir)
 complete = pd.read_csv(f"{data_dir}/{FILE}")
-logging.info("Initial dataframe size: %s", complete.shape)
-logging.info(
-    "Removing participants who did not finish or had internet connection issues."
-)
+logger.info("Initial dataframe size: %s", complete.shape)
 
 # * Remove rows participant.label = NaN
 complete = complete[complete["participant.label"].notna()]
+logger.info(
+    "Total participants who started the experiment: %s",
+    complete["participant.label"].nunique(),
+)
+logger.info(
+    "Removing participants who did not finish or had internet connection issues."
+)
 
 # * Remove columns with all NaN
 complete = complete.dropna(axis=1, how="all")
@@ -202,7 +208,7 @@ complete["participant.time_started_utc"] = pd.to_datetime(
 )
 
 # * FILTER BY DATE
-logging.info(
+logger.info(
     "Filtering test dates: Before %s, between %s and %s, and after %s.",
     START_TS,
     BETWEEN_TS_1,
@@ -221,17 +227,19 @@ complete = complete[
 
 # * Remove participants who did not finish Savings Game
 participants_to_remove = remove_failed_tasks(complete)
-logging.info(
-    "Removing participants for not completing task: %s", participants_to_remove
-)
+logger.info("Removing participants for not completing task: %s", participants_to_remove)
 complete = complete[~complete["participant.label"].isin(participants_to_remove)]
 
 incomplete_exp_participants = remove_exp_incomplete(complete)
-logging.debug(
+logger.debug(
     "Participants removed for not completing full experiment: %s",
     incomplete_exp_participants,
 )
 complete = complete[~complete["participant.label"].isin(incomplete_exp_participants)]
+logger.info(
+    "Total participants with complete: %s",
+    complete["participant.label"].nunique(),
+)
 
 # TODO Define whether participant was in intervention or control group
 # TODO Can do so without needing to change oTree table in the future by using
@@ -561,7 +569,7 @@ stats_final_payments = final_payments[
 final_df_list.append("stats_final_payments")
 final_df_dict["stats_final_payments"] = stats_final_payments
 
-logging.info("Complete. Total participants included: %s", (final_payments.shape[0] - 1))
+logger.info("Complete. Total participants included: %s", (final_payments.shape[0] - 1))
 
 
 if __name__ == "__main__":
@@ -571,7 +579,7 @@ if __name__ == "__main__":
     if export_results == "y":
         ## Excel of performance per session
         timestr = time.strftime("%Y%m%d-%H%M%S")
-        logging.info(timestr)
+        logger.info(timestr)
         with pd.ExcelWriter(
             f"{final_dir}/{FINAL_FILE_PREFIX}_{timestr}.xlsx"
         ) as writer:
@@ -581,6 +589,6 @@ if __name__ == "__main__":
             )
             for df in final_df_dict:
                 final_df_dict[df].to_excel(writer, sheet_name=f"{df}")
-                logging.info("Adding: %s", df)
+                logger.info("Adding: %s", df)
 
-    logging.info("done")
+    logger.info("done")

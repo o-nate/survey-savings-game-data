@@ -8,6 +8,7 @@ and after_430 is mean(quantity months 31-33) / `decision quantity` at start of m
 """
 
 import logging
+import sys
 
 # from pathlib import Path
 # from typing import List, Dict
@@ -21,10 +22,13 @@ import seaborn as sns
 
 # from preprocess import final_df_dict
 from calc_opp_costs import df_str
+from src.helpers import disable_module_debug_log
 
-# * Output settings
-logging.basicConfig(level="INFO")
-pd.set_option("display.max_rows", None, "display.max_columns", None)
+# * Logging settings
+logger = logging.getLogger(__name__)
+disable_module_debug_log("warning")
+logger.setLevel(logging.DEBUG)
+logger.addHandler(logging.StreamHandler(sys.stdout))
 
 # * Define `decision quantity` measure
 DECISION_QUANTITY = "cum_decision"
@@ -219,7 +223,7 @@ def main() -> None:
         y2 = np.array(data[Y][data["month"] == end])
         for n, m in enumerate(x1):
             axes[i].plot(
-                [x1[n], x2[n]],
+                [m, x2[n]],
                 [y1[n], y2[n]],
                 ## Define color
                 color="grey",
@@ -228,6 +232,7 @@ def main() -> None:
         ## Line for means
         before = data[(data["month"] == start)][Y].mean()
         after = data[(data["month"] == end)][Y].mean()
+        logger.debug("before: %s, after %s", before, after)
         axes[i].plot([0, 1], [before, after], color="black")
 
         ## Add title and labels
