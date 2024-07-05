@@ -115,9 +115,9 @@ def main() -> None:
     # * Convert datetime to date
     data["date"] = data["participant.time_started_utc"].dt.normalize()
 
-    # # ! Filter for just 20-06-2024
-    # data = data[data["date"] >= "2024-06-20"]
-    print(data["participant.label"].nunique())
+    # ! Filter for just 03-07-2024
+    data = data[data["date"] >= "2024-07-03"]
+    print("participants included: ", data["participant.label"].nunique())
 
     # # * Plot qualitative responses
     qual_responses = ["Qual Perception", "Qual Expectation"]
@@ -152,14 +152,13 @@ def main() -> None:
         hue="Measure",
         style="Measure",
         kind="line",
-        row="participant.round",
-        col="date",
+        col="participant.round",
     )
 
     ## Adjust titles
     (
         g.set_axis_labels("Month", "Inflation rate (%)")
-        .set_titles("Savings Game round: {col_name}")
+        # .set_titles("Savings Game round: {col_name}")
         .tight_layout(w_pad=0.5)
     )
 
