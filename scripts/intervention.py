@@ -5,7 +5,6 @@ import sys
 from typing import List
 
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 from scipy import stats
 import seaborn as sns
@@ -27,6 +26,9 @@ DECISION_QUANTITY = "cum_decision"
 
 # * Define purchase window, i.e. how many months before and after inflation phase change to count
 WINDOW = 3
+
+# * Date before which all subjects received intervention 1
+INTERVENTION_1_DATE = "2024-06-20"
 
 
 def measure_intervention_impact(
@@ -127,9 +129,28 @@ def main() -> None:
     logging.debug(data_df.shape)
     data_df = data_df.merge(df_int[["participant.label", "date"] + cols], how="left")
 
-    # ! Filter for just 20-06-2024
-    data_df = data_df[data_df["date"] >= "2024-06-20"]
+    # # ! Filter date
+    # data_df = data_df[data_df["date"] < "2024-06-20"]
+    # date(2024, 6, 20)
     print(data_df.shape)
+
+    # * Assign intervention based on date of experimental session
+    data_df["intervention"] = [
+        1 if x < pd.Timestamp(INTERVENTION_1_DATE) else 2 for x in data_df["date"]
+    ]
+
+    # * Rename mistakes
+    data_df.rename(
+        columns={
+            "finalSavings": "Total savings",
+            "early": "Over-stocking",
+            "late": "Under-stocking",
+            "excess": "Wasteful-stocking",
+        },
+        inplace=True,
+    )
+
+    measures = ["Total savings", "Over-stocking", "Under-stocking", "Wasteful-stocking"]
 
     data_df["convinced"] = data_df[[c for c in data_df.columns if "confirm" in c]].sum(
         axis=1
@@ -164,6 +185,7 @@ def main() -> None:
                 "participant.label",
                 "date",
                 "participant.round",
+                "intervention",
                 "convinced",
                 "task_int.1.player.confirm_early",
                 "task_int.1.player.confirm_late",
@@ -196,7 +218,7 @@ def main() -> None:
             data=df_melted,
             x="Measure",
             y="Result",
-            col="date",
+            col="intervention",
             hue="participant.round",
             kind="violin",
             split=True,
@@ -219,6 +241,7 @@ def main() -> None:
                 x="Measure",
                 y="Result",
                 col=f"task_int.1.player.confirm_{m}",
+                row="intervention",
                 hue="participant.round",
                 kind="violin",
                 split=True,
