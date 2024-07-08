@@ -105,7 +105,6 @@ def purchase_discontinuity(
 def main() -> None:
     """Run script"""
     df_disc = df_str[df_str.columns.to_list()[:13]].copy()
-    df_disc["date"] = df_disc["participant.time_started_utc"].dt.normalize()
     print(df_disc.head())
     logging.debug(df_disc.shape)
 

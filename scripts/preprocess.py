@@ -22,7 +22,7 @@ logger.setLevel(logging.DEBUG)
 logger.addHandler(logging.StreamHandler(sys.stdout))
 
 # * Declare name of file to process
-FILE = "all_apps_wide_2024-07-04.csv"
+FILE = "all_apps_wide_2024-07-08.csv"
 
 # * Declare name of output file
 FINAL_FILE_PREFIX = "processed_"
@@ -103,8 +103,8 @@ FIELDS = [
 ]
 logger.info("Processing task FIELDS: %s", FIELDS)
 
-COLUMNS_FOR_APPS = "participant.code|participant.label|participant.time_started_utc"
-TASK_COLUMNS = "participant.inflation|participant.round|participant.intervention"
+COLUMNS_FOR_APPS = "participant.code|participant.label|date"
+TASK_COLUMNS = "participant.inflation|participant.round|treatment"
 
 # * Filters for testing dates
 START_TS = "2024-04-30 00:00:00"
@@ -112,9 +112,15 @@ BETWEEN_TS_1 = "2024-05-03 00:00:00"
 BETWEEN_TS_2 = "2024-05-03 23:59:59"
 BETWEEN_TS_3 = "2024-05-07 00:00:00"
 BETWEEN_TS_4 = "2024-06-20 00:00:00"
+BETWEEN_TS_5 = "2024-07-02 00:00:00"
+BETWEEN_TS_6 = "2024-07-02 23:59:59"
 
 # * Filter participants who did not complete the entire experiment (total tasks complete)
 EXP_TASK_COMPLETE = 12
+
+# * Dates to define which treatment group subjects were assigned to
+INTERVENTION_1_DATE = "2024-06-20"
+INTERVENTION_2_DATE = "2024-07-02"
 
 
 def remove_failed_tasks(df_to_correct: pd.DataFrame) -> List[str]:
@@ -222,7 +228,11 @@ complete = complete[
         (complete["participant.time_started_utc"] > BETWEEN_TS_2)
         & (complete["participant.time_started_utc"] < BETWEEN_TS_3)
     )
-    | (complete["participant.time_started_utc"] > BETWEEN_TS_4)
+    | (
+        (complete["participant.time_started_utc"] > BETWEEN_TS_4)
+        & (complete["participant.time_started_utc"] < BETWEEN_TS_5)
+    )
+    | (complete["participant.time_started_utc"] > BETWEEN_TS_6)
 ]
 
 # * Remove participants who did not finish Savings Game
@@ -253,6 +263,19 @@ complete["participant.day_1"] = complete["participant.day_1"].apply(eval)
 complete["participant.intervention"] = [
     True if "task_int" in day_tests else False
     for day_tests in complete["participant.day_1"]
+]
+
+# * Create date column for easier filtering
+complete["date"] = complete["participant.time_started_utc"].dt.normalize()
+
+# * Determine which treatment group each subject was in
+complete["treatment"] = [
+    (
+        "Intervention 1"
+        if x < pd.Timestamp(INTERVENTION_1_DATE)
+        else ("Intervention 2" if x < pd.Timestamp(INTERVENTION_2_DATE) else "Control")
+    )
+    for x in complete["date"]
 ]
 
 # organize rows by participant.label and display corresponding codes

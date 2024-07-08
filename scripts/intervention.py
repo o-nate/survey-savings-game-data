@@ -2,8 +2,9 @@
 
 import logging
 import sys
-from typing import List
+from typing import Dict, List
 
+from datetime import datetime
 import matplotlib.pyplot as plt
 import pandas as pd
 from scipy import stats
@@ -26,9 +27,6 @@ DECISION_QUANTITY = "cum_decision"
 
 # * Define purchase window, i.e. how many months before and after inflation phase change to count
 WINDOW = 3
-
-# * Date before which all subjects received intervention 1
-INTERVENTION_1_DATE = "2024-06-20"
 
 
 def measure_intervention_impact(
@@ -102,9 +100,6 @@ def main() -> None:
     """Run script"""
     df_int = final_df_dict["task_int"].copy()
 
-    # * Convert datetime to date
-    df_int["date"] = df_int["participant.time_started_utc"].dt.normalize()
-
     df_results = df_str.copy()
     logging.debug(df_results.shape)
 
@@ -129,16 +124,6 @@ def main() -> None:
     logging.debug(data_df.shape)
     data_df = data_df.merge(df_int[["participant.label", "date"] + cols], how="left")
 
-    # # ! Filter date
-    # data_df = data_df[data_df["date"] < "2024-06-20"]
-    # date(2024, 6, 20)
-    print(data_df.shape)
-
-    # * Assign intervention based on date of experimental session
-    data_df["intervention"] = [
-        1 if x < pd.Timestamp(INTERVENTION_1_DATE) else 2 for x in data_df["date"]
-    ]
-
     # * Rename mistakes
     data_df.rename(
         columns={
@@ -159,7 +144,9 @@ def main() -> None:
     print(data_df.head())
 
     # * Measure intervention impact
-    measure_intervention_impact(data_df, measures)
+    for treat in ["Intervention 1", "Intervention 2", "Control"]:
+        print(f"Treatment group: {treat}")
+        measure_intervention_impact(data_df[data_df["treatment"] == treat], measures)
 
     # * Measure impact of intervention feedback
     measure_feedback = input("Measure impact of intervention feedback? (y/n):")
@@ -185,7 +172,7 @@ def main() -> None:
                 "participant.label",
                 "date",
                 "participant.round",
-                "intervention",
+                "treatment",
                 "convinced",
                 "task_int.1.player.confirm_early",
                 "task_int.1.player.confirm_late",
@@ -218,7 +205,7 @@ def main() -> None:
             data=df_melted,
             x="Measure",
             y="Result",
-            col="intervention",
+            col="treatment",
             hue="participant.round",
             kind="violin",
             split=True,
@@ -241,7 +228,7 @@ def main() -> None:
                 x="Measure",
                 y="Result",
                 col=f"task_int.1.player.confirm_{m}",
-                row="intervention",
+                row="treatment",
                 hue="participant.round",
                 kind="violin",
                 split=True,

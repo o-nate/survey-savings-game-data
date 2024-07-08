@@ -135,7 +135,8 @@ logging.info(
 MELT_COLS = [
     "participant.code",
     "participant.label",
-    "participant.time_started_utc",
+    "date",
+    "treatment",
     "participant.inflation",
     "participant.round",
 ]
@@ -178,8 +179,8 @@ df_combine.drop_duplicates(inplace=True)  ## Rows
 df_combine = df_combine.loc[:, ~df_combine.columns.duplicated()].copy()
 ## Extract month number
 df_combine["month"] = df_combine["month"].str.extract("(\d+)")
-## Convert columns to int, except participant.time_started_utc
-cols_to_convert = [c for c in df_combine.columns if c != "participant.time_started_utc"]
+## Convert columns to int, except date
+cols_to_convert = [c for c in df_combine.columns if c != "date"]
 df_combine[cols_to_convert] = df_combine[cols_to_convert].apply(
     pd.to_numeric, errors="ignore"
 )
@@ -393,8 +394,6 @@ def main() -> None:
     if graph_data != "y" and graph_data != "n":
         graph_data = input("Please respond with 'y' or 'n':")
     if graph_data == "y":
-        # * Convert datetime to date
-        df_str["date"] = df_str["participant.time_started_utc"].dt.normalize()
         # ! Filter for just session on/after 20-06-2024
         df_str_filtered = df_str[df_str["date"] >= "2024-06-20"]
         print(f"{df_str_filtered['participant.label'].nunique()} participants included")
