@@ -9,6 +9,7 @@ import logging
 import math
 import os
 from pathlib import Path
+import sys
 import time
 from typing import List
 
@@ -25,6 +26,7 @@ from src.helpers import disable_module_debug_log
 logger = logging.getLogger(__name__)
 disable_module_debug_log("warning")
 logger.setLevel(logging.DEBUG)
+logger.addHandler(logging.StreamHandler(sys.stdout))
 
 
 # * Declare inflation csv file
@@ -395,14 +397,14 @@ def main() -> None:
         graph_data = input("Please respond with 'y' or 'n':")
     if graph_data == "y":
         # ! Filter for just session on/after 20-06-2024
-        df_str_filtered = df_str[df_str["date"] >= "2024-06-20"]
+        df_str_filtered = df_str.copy()
         print(f"{df_str_filtered['participant.label'].nunique()} participants included")
         ## Convert to time series-esque dataframe for multi-bar plot
         df_stock = df_str_filtered.melt(
             id_vars=[
                 "participant.code",
                 "participant.label",
-                "date",
+                "treatment",
                 "participant.inflation",
                 "phase",
                 "month",
@@ -416,7 +418,7 @@ def main() -> None:
             id_vars=[
                 "participant.code",
                 "participant.label",
-                "date",
+                "treatment",
                 "participant.inflation",
                 "phase",
                 "month",
@@ -446,7 +448,7 @@ def main() -> None:
             y="Stock",
             kind="bar",
             col="phase",
-            # row="date",n
+            row="treatment",
             palette="tab10",
             hue="Strategy",
             legend_out=False,
@@ -455,12 +457,14 @@ def main() -> None:
             height=5,
             aspect=1.75,
         )
-
+        print("items", fig.axes_dict.items())
         for phase, ax in fig.axes_dict.items():
-            logging.debug(phase)
+            print(phase)
             ax2 = ax.twinx()
             sns.lineplot(
-                data=dfts[dfts["phase"] == phase[1]],
+                data=dfts[
+                    (dfts["phase"] == phase[1]) & (dfts["treatment"] == phase[0])
+                ],
                 legend=None,
                 x="month",
                 y="Savings",
