@@ -389,7 +389,6 @@ for j in range(1, 11):
 
 df_dict["riskPreferences"].head()
 
-# In[397]:
 # # `lossAversion`: Distribute `raw_responses` to columns
 
 new_lossAversion = pd.DataFrame(
@@ -426,9 +425,8 @@ for j in range(2, 8):
 
 df_dict["lossAversion"].head()
 
-# # Unpack `wisconsin` dict
+# Unpack `wisconsin` dict
 df_wisc = df_dict["wisconsin"].copy()
-df_wisc = df_wisc.dropna(axis=0)
 
 # convert str to dict
 df_wisc.dicts = df_wisc["wisconsin.1.player.response_time"].apply(json.loads)
@@ -439,29 +437,33 @@ df_wisc = pd.concat(
     [df_wisc, df_wisc["wisconsin.1.player.response_time"].apply(pd.Series)], axis=1
 )
 
-# create new df to break up dicts
+# * Break dicts into columns for each trial
 new = df_wisc.iloc[:, :1]
-# break dicts into columns for each trial
+
+new_dfs_dict = {"new": new["participant.code"].reset_index()}
 for col in range(1, 31):
     new[col] = df_wisc[f"{col}"]
+    ## Convert list to string
+    new[col] = [",".join(map(str, l)) for l in new[col]]
+    ## Convert string to dict
+    new[col] = new[col].apply(json.loads)
+    new_dfs_dict[col] = pd.json_normalize(new[col])
 
-# convert list to dict and create columns for each key:value pair
-for n in range(len(df_wisc.index)):
-    for col in range(1, 31):
-        response_dict = json.loads(df_wisc[str(col)].iloc[n][0])
-        for i in response_dict:
-            new[f"trial_{col}_{i}"] = None
+## Store general columns to add suffix for trial number
+col_list = list(new[1].iat[0].keys())
 
-# replace cell values with corresponding key:value pairs
-for n in tqdm(range(len(df_wisc.index)), desc="Wisconsin, extracting responses"):
-    for col in range(1, 31):
-        response_dict = json.loads(df_wisc[str(col)].iloc[n][0])
-        for i in response_dict:
-            new[f"trial_{col}_{i}"].iloc[n] = response_dict[i]
+## Merge dataframes
+new = pd.concat(new_dfs_dict.values(), axis=1)
 
+## Add suffixes
+logger.debug("new columns %s", new.columns)
+new.drop("index", axis=1, inplace=True)
+new.columns = ["participant.code"] + [
+    f"{c}_{i}" for i in range(1, 31) for c in col_list
+]
 
 # concatenate new columns with df_wisc
-df_wisc = pd.concat([df_wisc, new.iloc[:, 31:]], axis=1)
+df_wisc = pd.concat([df_wisc, new], axis=1)
 
 # remove separated trial number columns
 columns = []
