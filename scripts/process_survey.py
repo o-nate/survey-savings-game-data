@@ -1,10 +1,10 @@
 """Process survey responses of perceived and expected inflation"""
 
 import logging
+import sys
 
 from functools import reduce
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 import seaborn as sns
 
@@ -15,6 +15,7 @@ from src.helpers import disable_module_debug_log, INF_430
 logger = logging.getLogger(__name__)
 disable_module_debug_log("warning")
 logger.setLevel(logging.DEBUG)
+logger.addHandler(logging.StreamHandler(sys.stdout))
 
 
 def create_survey_df() -> pd.DataFrame:
@@ -36,7 +37,7 @@ def create_survey_df() -> pd.DataFrame:
         id_vars=[
             "participant.code",
             "participant.label",
-            "participant.time_started_utc",
+            "date",
             "participant.inflation",
             "participant.round",
         ],
@@ -46,12 +47,10 @@ def create_survey_df() -> pd.DataFrame:
     )
 
     # * Extract month number
-    df_survey["Month"] = df_survey["Measure"].str.extract("(\d+)")
+    df_survey["Month"] = df_survey["Measure"].str.extract(r"(\d+)")
 
     # * Convert columns to int, except participant.time_started_utc
-    cols_to_convert = [
-        c for c in df_survey.columns if c != "participant.time_started_utc"
-    ]
+    cols_to_convert = [c for c in df_survey.columns if c != "date"]
     df_survey[cols_to_convert] = df_survey[cols_to_convert].apply(
         pd.to_numeric, errors="ignore"
     )
@@ -113,25 +112,25 @@ def main() -> None:
     data = create_survey_df()
 
     # ! Filter for just 03-07-2024
-    data = data[data["date"] >= "2024-07-03"]
+    # data = data[data["date"] >= "2024-07-03"]
     print("participants included: ", data["participant.label"].nunique())
 
     # # * Plot qualitative responses
     qual_responses = ["Qual Perception", "Qual Expectation"]
     print(data[data["Measure"].isin(qual_responses)].head())
 
-    h = sns.FacetGrid(
-        data=data[data["Measure"].isin(qual_responses)],
-        col="Month",
-        height=2.5,
-        col_wrap=3,
-        hue="Measure",
-    )
-    h.map(
-        sns.histplot,
-        "Estimate",
-        multiple="dodge",
-        shrink=0.8,
+    data2 = data.copy()
+    data2["Month"] = data2["Month"].astype(str)
+
+    sns.catplot(
+        data=data2[data2["Measure"].isin(qual_responses)],
+        x="Estimate",
+        y="Month",
+        col="Measure",
+        hue="participant.round",
+        kind="violin",
+        split=True,
+        palette="bright",
     )
 
     # * Plot estimates over time
