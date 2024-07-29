@@ -20,11 +20,11 @@ import seaborn as sns
 from tqdm.auto import tqdm
 
 from preprocess import final_df_dict
-from src.helpers import disable_module_debug_log
+from src.utils.logging_helpers import set_external_module_log_levels
 
 # * Logging settings
 logger = logging.getLogger(__name__)
-disable_module_debug_log("warning")
+set_external_module_log_levels("warning")
 logger.setLevel(logging.DEBUG)
 logger.addHandler(logging.StreamHandler(sys.stdout))
 

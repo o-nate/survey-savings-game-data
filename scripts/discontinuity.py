@@ -22,11 +22,11 @@ import seaborn as sns
 
 # from preprocess import final_df_dict
 from calc_opp_costs import df_str
-from src.helpers import disable_module_debug_log
+from src.utils.logging_helpers import set_external_module_log_levels
 
 # * Logging settings
 logger = logging.getLogger(__name__)
-disable_module_debug_log("warning")
+set_external_module_log_levels("warning")
 logger.setLevel(logging.DEBUG)
 logger.addHandler(logging.StreamHandler(sys.stdout))
 

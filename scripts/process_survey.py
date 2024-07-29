@@ -9,11 +9,11 @@ import pandas as pd
 import seaborn as sns
 
 from preprocess import final_df_dict
-from src.helpers import disable_module_debug_log, INF_430
+from src.utils.logging_helpers import set_external_module_log_levels, INF_430
 
 # * Logging settings
 logger = logging.getLogger(__name__)
-disable_module_debug_log("warning")
+set_external_module_log_levels("warning")
 logger.setLevel(logging.DEBUG)
 logger.addHandler(logging.StreamHandler(sys.stdout))
 
