@@ -103,6 +103,95 @@ def round_price(number, decimal_precision=2):
     return number
 
 
+def plot_savings_and_stock(data: pd.DataFrame, **kwargs) -> None:
+    """Plot average performance versus optimal and naive strategies
+
+    Args:
+        data (pd.DataFrame): _description_
+    """
+    ## Convert to time series-esque dataframe for multi-bar plot
+    df_stock = data.melt(
+        id_vars=[
+            "participant.code",
+            "participant.label",
+            "treatment",
+            "participant.inflation",
+            "phase",
+            "month",
+        ],
+        var_name="Strategy",
+        value_vars=["participant.inflation", "finalStock", "sgoptimal", "sgnaive"],
+        value_name="Stock",
+    )
+
+    df_savings = data.melt(
+        id_vars=[
+            "participant.code",
+            "participant.label",
+            "treatment",
+            "participant.inflation",
+            "phase",
+            "month",
+        ],
+        var_name="Strategy",
+        value_vars=["participant.inflation", "sreal", "soptimal", "snaive"],
+        value_name="Savings",
+    )
+
+    dfts = pd.concat([df_stock, df_savings], axis=1, join="inner")
+
+    dfts.drop_duplicates(inplace=True)
+
+    ## Remove duplicate columns
+    dfts = dfts.loc[:, ~dfts.columns.duplicated()].copy()
+
+    ## Rename strategies
+    dfts.Strategy.replace(
+        ["finalStock", "sgnaive", "sgoptimal"],
+        ["Average", "Naive", "Optimal"],
+        inplace=True,
+    )
+
+    fig = sns.catplot(
+        data=dfts,
+        x="month",
+        y="Stock",
+        kind="bar",
+        hue="Strategy",
+        legend_out=False,
+        estimator="mean",
+        errorbar=None,
+        height=5,
+        aspect=1.75,
+        **kwargs,
+    )
+    logger.debug("items %s", fig.axes_dict.items())
+    for phase, ax in fig.axes_dict.items():
+        logger.debug(phase)
+        if type(phase) == tuple:
+            data_line_plot = dfts[
+                (dfts["phase"] == phase[1]) & (dfts["treatment"] == phase[0])
+            ]
+        elif type(phase) == str:
+            data_line_plot = dfts[dfts["phase"] == phase]
+        ax2 = ax.twinx()
+        sns.lineplot(
+            data=data_line_plot,
+            legend=None,
+            x="month",
+            y="Savings",
+            hue="Strategy",
+            ci=None,
+            ax=ax2,
+            palette=kwargs["palette"],
+        )
+        ax2.set_ylim(0, dfts["Savings"].max() + 500)
+
+    ax2.set_xticks(ax2.get_xticks()[0:120:12])
+    plt.tight_layout()
+    plt.show()
+
+
 df_inf = pd.read_csv(inf_file, delimiter=",", header=0)
 df_inf.rename(columns={"period": "month"}, inplace=True)
 
@@ -384,95 +473,6 @@ for measure in ["early", "late", "excess", "sreal", "finalSavings"]:
 
 
 logging.info("Done, df_opp_cost columns: %s", df_opp_cost.columns.to_list())
-
-
-def plot_savings_and_stock(data: pd.DataFrame, **kwargs) -> None:
-    """Plot average performance versus optimal and naive strategies
-
-    Args:
-        data (pd.DataFrame): _description_
-    """
-    ## Convert to time series-esque dataframe for multi-bar plot
-    df_stock = data.melt(
-        id_vars=[
-            "participant.code",
-            "participant.label",
-            "treatment",
-            "participant.inflation",
-            "phase",
-            "month",
-        ],
-        var_name="Strategy",
-        value_vars=["participant.inflation", "finalStock", "sgoptimal", "sgnaive"],
-        value_name="Stock",
-    )
-
-    df_savings = data.melt(
-        id_vars=[
-            "participant.code",
-            "participant.label",
-            "treatment",
-            "participant.inflation",
-            "phase",
-            "month",
-        ],
-        var_name="Strategy",
-        value_vars=["participant.inflation", "sreal", "soptimal", "snaive"],
-        value_name="Savings",
-    )
-
-    dfts = pd.concat([df_stock, df_savings], axis=1, join="inner")
-
-    dfts.drop_duplicates(inplace=True)
-
-    ## Remove duplicate columns
-    dfts = dfts.loc[:, ~dfts.columns.duplicated()].copy()
-
-    ## Rename strategies
-    dfts.Strategy.replace(
-        ["finalStock", "sgnaive", "sgoptimal"],
-        ["Average", "Naive", "Optimal"],
-        inplace=True,
-    )
-
-    fig = sns.catplot(
-        data=dfts,
-        x="month",
-        y="Stock",
-        kind="bar",
-        hue="Strategy",
-        legend_out=False,
-        estimator="mean",
-        errorbar=None,
-        height=5,
-        aspect=1.75,
-        **kwargs,
-    )
-    logger.debug("items %s", fig.axes_dict.items())
-    for phase, ax in fig.axes_dict.items():
-        logger.debug(phase)
-        if type(phase) == tuple:
-            data_line_plot = dfts[
-                (dfts["phase"] == phase[1]) & (dfts["treatment"] == phase[0])
-            ]
-        elif type(phase) == str:
-            data_line_plot = dfts[dfts["phase"] == phase]
-        ax2 = ax.twinx()
-        sns.lineplot(
-            data=data_line_plot,
-            legend=None,
-            x="month",
-            y="Savings",
-            hue="Strategy",
-            ci=None,
-            ax=ax2,
-            palette=kwargs["palette"],
-        )
-        ax2.set_ylim(0, dfts["Savings"].max() + 500)
-
-    ax2.set_xticks(ax2.get_xticks()[0:120:12])
-    plt.tight_layout()
-    plt.show()
 
 
 def main() -> None:
