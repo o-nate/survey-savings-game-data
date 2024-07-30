@@ -3,7 +3,7 @@
 import logging
 import sys
 
-from src.process_survey import create_survey_df
+from src.process_survey import create_survey_df, pivot_inflation_measures
 from src.utils.logging_helpers import set_external_module_log_levels
 
 
@@ -21,6 +21,7 @@ TEST_VALUES = {
     "Qual Expectation": 3.0,
     "Qual Perception": 2.0,
 }
+TEST_DF_LEN = 3454
 
 logger.info("Testing process_survey module")
 data = create_survey_df()
@@ -29,5 +30,11 @@ data = data[
 ]
 for k, v in TEST_VALUES.items():
     assert data[data["Measure"] == k]["Estimate"].iat[0] == v
+
+logger.info("Testing pivot function")
+data = create_survey_df()
+df = pivot_inflation_measures(data)
+assert df.shape[0] == TEST_DF_LEN
+
 
 logger.info("Test complete")
