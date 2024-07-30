@@ -19,6 +19,75 @@ logger.setLevel(logging.DEBUG)
 logger.addHandler(logging.StreamHandler(sys.stdout))
 
 
+def calculate_estimate_bias(
+    df: pd.DataFrame, estimate_col: str, real_inflation_col: str
+) -> pd.Series:
+    """Takes the difference bewteen real and estimate inflation (real minus estimate)
+
+    Args:
+        df (pd.DataFrame): DataFrame with estimate and real inflation columns
+        estimate_col (str): column name of estimates
+        real_inflation_col (str): column name of real inflation
+
+    Returns:
+        pd.Series: returns with column for bias
+    """
+    return df[real_inflation_col] - df[estimate_col]
+
+
+def pivot_inflation_measures(df: pd.DataFrame) -> pd.DataFrame:
+    """Pivots inflation and inflation estimate dataframes to calculate inflation measures
+
+    Args:
+        df (pd.DataFrame): _description_
+
+    Returns:
+        pd.DataFrame: _description_
+    """
+    df_inf = pd.DataFrame(INFLATION_DICT)
+    df_inf = pd.pivot_table(
+        df_inf,
+        index=["participant.inflation", "participant.round", "Month"],
+        columns="Measure",
+    )
+    df_inf.columns = [
+        "_".join(str(i) for i in a) for a in df_inf.columns.to_flat_index()
+    ]
+    df_inf.reset_index(inplace=True)
+    df_pivot = pd.pivot_table(
+        data=df,
+        index=[
+            "participant.code",
+            "participant.label",
+            "date",
+            "participant.inflation",
+            "participant.round",
+            "Month",
+        ],
+        columns="Measure",
+        fill_value=0,
+    )
+    # Remove multiindex
+    df_pivot.columns = [
+        "_".join(str(i) for i in a) for a in df_pivot.columns.to_flat_index()
+    ]
+    df_pivot.reset_index(inplace=True)
+    df_pivot = df_pivot.merge(
+        df_inf[[c for c in df_inf.columns if "inflation" not in c]],
+        how="left",
+        on=["Month", "participant.round"],
+    )
+    df_pivot.rename(
+        columns={
+            col: col.removeprefix("Estimate_")
+            for col in df_pivot.columns
+            if "Estimate_" in col
+        },
+        inplace=True,
+    )
+    return df_pivot
+
+
 def create_survey_df() -> pd.DataFrame:
     """Creates a merged dataframe with the estimates (perceptions
     and expectations) and actual inflation in a single dataframe"""
@@ -102,14 +171,8 @@ def create_survey_df() -> pd.DataFrame:
 def main() -> None:
     """Run script"""
     data = create_survey_df()
-    logger.debug(
-        "for testing %s",
-        data[
-            (data["participant.label"] == "xVRXlxl")
-            & (data["participant.round"] == 2)
-            & (data["Month"] == 36)
-        ],
-    )
+    measures = pivot_inflation_measures(data)
+    logger.debug(measures.shape)
 
     print("participants included: ", data["participant.label"].nunique())
 
