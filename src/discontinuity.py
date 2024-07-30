@@ -57,8 +57,8 @@ def purchase_discontinuity(
         for m in range(CHANGE_1012 * n - window + 1, CHANGE_1012 * n + window + 1)
     ]
 
-    logging.info("Months for 4x30: %s", cols_430)
-    logging.info("Months for 10x12: %s", cols_1012)
+    logger.info("Months for 4x30: %s", cols_430)
+    logger.info("Months for 10x12: %s", cols_1012)
 
     ## Set `decision_quantity` to previous month's
     ## The `decision_quantity` at month=1 for each participant should be NaN
@@ -100,7 +100,6 @@ def main() -> None:
     """Run script"""
     df_disc = df_opp_cost[df_opp_cost.columns.to_list()[:13]].copy()
     print(df_disc.head())
-    logging.debug(df_disc.shape)
 
     df_disc = purchase_discontinuity(
         df_disc, decision_quantity=DECISION_QUANTITY, window=WINDOW
