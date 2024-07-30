@@ -377,6 +377,12 @@ logging.info("Done, df_opp_cost shape: %s", df_opp_cost.shape)
 # * Calculate opportunity costs for each category: early, late, and excess
 df_opp_cost = categorize_opp_cost(df_opp_cost)
 logging.info("Done, df_opp_cost shape: %s", df_opp_cost.shape)
+
+# * Calculate percentage of max
+for measure in ["early", "late", "excess", "sreal", "finalSavings"]:
+    df_opp_cost[f"{measure}_%"] = df_opp_cost[measure] / df_opp_cost["soptimal"]
+
+
 logging.info("Done, df_opp_cost columns: %s", df_opp_cost.columns.to_list())
 
 
