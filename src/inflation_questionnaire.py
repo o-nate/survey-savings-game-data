@@ -23,6 +23,8 @@ df = final_df_dict["Inflation"].copy()
 df.describe().T
 
 # %%
+inf_behavior_cols = [c for c in df.columns if "inf_" in c]
+sns.pairplot(df[inf_behavior_cols])
 
 
 # %%

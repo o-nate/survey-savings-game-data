@@ -17,7 +17,7 @@ import statsmodels.api as sm
 import statsmodels.formula.api as smf
 
 from preprocess import final_df_dict
-from calc_opp_costs import df_str
+from calc_opp_costs import df_opp_cost
 from discontinuity import purchase_discontinuity
 from process_survey import create_survey_df
 from src.utils.logging_helpers import set_external_module_log_levels
@@ -49,7 +49,7 @@ WINDOW = 3
 # %%
 def main() -> None:
     """Run script"""
-    df_results = df_str.copy()
+    df_results = df_opp_cost.copy()
     logger.debug(df_results.shape)
 
     # %%
@@ -87,7 +87,7 @@ def main() -> None:
     df_inf = df_inf.apply(pd.to_numeric, errors="ignore")
     logger.debug(df_inf.dtypes)
 
-    df_stock = df_str.copy()
+    df_stock = df_opp_cost.copy()
     df_stock = df_stock.merge(
         df_inf[["participant.code", "participant.label", "month", "estimate"]],
         how="left",

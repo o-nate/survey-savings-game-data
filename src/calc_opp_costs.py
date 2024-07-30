@@ -7,7 +7,6 @@ of error (early, late, and excess purchases). When run directly as a script
 from decimal import Decimal, ROUND_UP
 import logging
 import math
-import os
 from pathlib import Path
 import sys
 import time
@@ -19,7 +18,7 @@ import pandas as pd
 import seaborn as sns
 from tqdm.auto import tqdm
 
-from preprocess import final_df_dict
+from src.preprocess import final_df_dict
 from src.utils.logging_helpers import set_external_module_log_levels
 
 # * Logging settings
@@ -229,10 +228,10 @@ df_combine.rename(
 # ## Stock phase 1
 # Stock at end of of month t, removing excess purchases: SG1_t = Min(SGt, 120-t)
 # Stock at end of of month t, removing excess purchases: SG1_t = Min(SGt, 120-t)
-df_str = df_combine.copy()
+df_opp_cost = df_combine.copy()
 
 ## Add naive and optimal strategy stocks
-df_str["sgnaive"] = 0
+df_opp_cost["sgnaive"] = 0
 ## Convert opt table to time series
 opt2 = opt.melt(
     id_vars="month",
@@ -245,13 +244,13 @@ opt2["participant.inflation"] = opt2["participant.inflation"].str.extract("(\d+)
 ## Convert data types
 opt2 = opt2.apply(pd.to_numeric, errors="ignore")
 ## Combine with participants
-df_str = df_str.merge(opt2, how="left")
+df_opp_cost = df_opp_cost.merge(opt2, how="left")
 
 ## SG1_t = min(SG_t, 120-t)
-df_str["mos_remaining"] = 120 - df_str["month"]
-df_str["sg1"] = df_str[["finalStock", "mos_remaining"]].min(axis=1)
+df_opp_cost["mos_remaining"] = 120 - df_opp_cost["month"]
+df_opp_cost["sg1"] = df_opp_cost[["finalStock", "mos_remaining"]].min(axis=1)
 ## Remove mos_remaining column
-df_str = df_str[[c for c in df_str.columns if "mos_remaining" not in c]]
+df_opp_cost = df_opp_cost[[c for c in df_opp_cost.columns if "mos_remaining" not in c]]
 
 # ## Stock phase 2
 # Final stock at month t after removing excess and early purchases:
@@ -262,36 +261,37 @@ df_str = df_str[[c for c in df_str.columns if "mos_remaining" not in c]]
 
 criteria = [
     ## 1st phase, SG2_t = 0
-    df_str["participant.inflation"].eq(1012) & df_str["month"].le(12),
-    df_str["participant.inflation"].eq(430) & df_str["month"].le(30),
+    df_opp_cost["participant.inflation"].eq(1012) & df_opp_cost["month"].le(12),
+    df_opp_cost["participant.inflation"].eq(430) & df_opp_cost["month"].le(30),
     ## For high-inflation phases, SG2_t = SG1_t
-    df_str["inf_phase"].eq(1),
+    df_opp_cost["inf_phase"].eq(1),
     ## 1st month in low-inflation phase, SG2_t = SG1_(t-1) - 1
-    df_str["participant.inflation"].eq(1012)
-    & df_str["month"].gt(12)
-    & df_str["inf_phase"].shift(1).eq(1)
-    & df_str["inf_phase"].eq(0),
-    df_str["participant.inflation"].eq(430)
-    & df_str["month"].gt(30)
-    & df_str["inf_phase"].shift(1).eq(1)
-    & df_str["inf_phase"].eq(0),
+    df_opp_cost["participant.inflation"].eq(1012)
+    & df_opp_cost["month"].gt(12)
+    & df_opp_cost["inf_phase"].shift(1).eq(1)
+    & df_opp_cost["inf_phase"].eq(0),
+    df_opp_cost["participant.inflation"].eq(430)
+    & df_opp_cost["month"].gt(30)
+    & df_opp_cost["inf_phase"].shift(1).eq(1)
+    & df_opp_cost["inf_phase"].eq(0),
 ]
 
 choices = [
     0,
     0,
-    df_str["sg1"],
-    df_str["sg1"].shift(1) - 1,
-    df_str["sg1"].shift(1) - 1,
+    df_opp_cost["sg1"],
+    df_opp_cost["sg1"].shift(1) - 1,
+    df_opp_cost["sg1"].shift(1) - 1,
 ]
 
-df_str["sg2"] = np.select(criteria, choices, default=np.nan)
+df_opp_cost["sg2"] = np.select(criteria, choices, default=np.nan)
 
 ## After 1st month in low-inflation phases, SG2_t = max(0, (SG2_t) - 1)
-df_str["sg2"] = (
-    df_str["sg2"].ffill() - df_str.groupby(df_str["sg2"].notnull().cumsum()).cumcount()
+df_opp_cost["sg2"] = (
+    df_opp_cost["sg2"].ffill()
+    - df_opp_cost.groupby(df_opp_cost["sg2"].notnull().cumsum()).cumcount()
 )
-df_str["sg2"] = np.maximum(df_str["sg2"], 0)
+df_opp_cost["sg2"] = np.maximum(df_opp_cost["sg2"], 0)
 
 # ## Non-foresighted strategy
 # Non-farsighted strategy: SGNF_t = SG2_t during the first low-inflation phase
@@ -299,21 +299,21 @@ df_str["sg2"] = np.maximum(df_str["sg2"], 0)
 
 ## 1st phase and 1st month of first high-inflation phase, SGNF_t = SG2_t
 criteria = [
-    df_str["participant.inflation"].eq(1012) & df_str["month"].le(13),
-    df_str["participant.inflation"].eq(430) & df_str["month"].le(31),
+    df_opp_cost["participant.inflation"].eq(1012) & df_opp_cost["month"].le(13),
+    df_opp_cost["participant.inflation"].eq(430) & df_opp_cost["month"].le(31),
 ]
 choices = [
-    df_str["sg2"],
-    df_str["sg2"],
+    df_opp_cost["sg2"],
+    df_opp_cost["sg2"],
 ]
-df_str["sgnf"] = np.select(criteria, choices, default=np.nan)
+df_opp_cost["sgnf"] = np.select(criteria, choices, default=np.nan)
 
 ## Afterwards, SGNF_(t+1) = max(0, (SGNF_t) - 1)
-df_str["sgnf"] = (
-    df_str["sgnf"].ffill()
-    - df_str.groupby(df_str["sgnf"].notnull().cumsum()).cumcount()
+df_opp_cost["sgnf"] = (
+    df_opp_cost["sgnf"].ffill()
+    - df_opp_cost.groupby(df_opp_cost["sgnf"].notnull().cumsum()).cumcount()
 )
-df_str["sgnf"] = np.maximum(df_str["sgnf"], 0)
+df_opp_cost["sgnf"] = np.maximum(df_opp_cost["sgnf"], 0)
 
 # ## Consumption
 # From the modified stocks, it is possible to calculate the corresponding
@@ -323,10 +323,10 @@ df_str["sgnf"] = np.maximum(df_str["sgnf"], 0)
 ## where qi_1 = SGi_1
 strategies = ["naive", "1", "2", "nf", "optimal"]
 for s in strategies:
-    df_str[f"q{s}"] = np.nan
-    df_str[f"q{s}"][df_str["month"] == 1] = df_str[f"sg{s}"] + 1
-    df_str[f"q{s}"][df_str["month"] > 1] = (
-        df_str[f"sg{s}"] - df_str[f"sg{s}"].shift(1) + 1
+    df_opp_cost[f"q{s}"] = np.nan
+    df_opp_cost[f"q{s}"][df_opp_cost["month"] == 1] = df_opp_cost[f"sg{s}"] + 1
+    df_opp_cost[f"q{s}"][df_opp_cost["month"] > 1] = (
+        df_opp_cost[f"sg{s}"] - df_opp_cost[f"sg{s}"].shift(1) + 1
     )
 
 # ## Savings
@@ -335,8 +335,8 @@ for s in strategies:
 ## Calculate savings balance for each strategy, `i`
 strategies = ["naive", "1", "2", "nf", "optimal", "real"]
 logging.info("Calculating savings balances for strategies: %s", ", ".join(strategies))
-df_str = strategy_savings_calc(strategies, df_str)
-print(df_str[(df_str["month"] == 13) | (df_str["month"] == 31)].head())
+df_opp_cost = strategy_savings_calc(strategies, df_opp_cost)
+print(df_opp_cost[(df_opp_cost["month"] == 13) | (df_opp_cost["month"] == 31)].head())
 
 # ## Actual savings
 
@@ -370,14 +370,103 @@ df_save2.sort_values(
     inplace=True,
 )
 
-df_str = df_str.merge(df_save2, how="left")
+df_opp_cost = df_opp_cost.merge(df_save2, how="left")
 
-logging.info("Done, df_str shape: %s", df_str.shape)
+logging.info("Done, df_opp_cost shape: %s", df_opp_cost.shape)
 
 # * Calculate opportunity costs for each category: early, late, and excess
-df_str = categorize_opp_cost(df_str)
-logging.info("Done, df_str shape: %s", df_str.shape)
-logging.info("Done, df_str columns: %s", df_str.columns.to_list())
+df_opp_cost = categorize_opp_cost(df_opp_cost)
+logging.info("Done, df_opp_cost shape: %s", df_opp_cost.shape)
+logging.info("Done, df_opp_cost columns: %s", df_opp_cost.columns.to_list())
+
+
+def plot_savings_and_stock(data: pd.DataFrame, **kwargs) -> None:
+    """Plot average performance versus optimal and naive strategies
+
+    Args:
+        data (pd.DataFrame): _description_
+    """
+    ## Convert to time series-esque dataframe for multi-bar plot
+    df_stock = data.melt(
+        id_vars=[
+            "participant.code",
+            "participant.label",
+            "treatment",
+            "participant.inflation",
+            "phase",
+            "month",
+        ],
+        var_name="Strategy",
+        value_vars=["participant.inflation", "finalStock", "sgoptimal", "sgnaive"],
+        value_name="Stock",
+    )
+
+    df_savings = data.melt(
+        id_vars=[
+            "participant.code",
+            "participant.label",
+            "treatment",
+            "participant.inflation",
+            "phase",
+            "month",
+        ],
+        var_name="Strategy",
+        value_vars=["participant.inflation", "sreal", "soptimal", "snaive"],
+        value_name="Savings",
+    )
+
+    dfts = pd.concat([df_stock, df_savings], axis=1, join="inner")
+
+    dfts.drop_duplicates(inplace=True)
+
+    ## Remove duplicate columns
+    dfts = dfts.loc[:, ~dfts.columns.duplicated()].copy()
+
+    ## Rename strategies
+    dfts.Strategy.replace(
+        ["finalStock", "sgnaive", "sgoptimal"],
+        ["Average", "Naive", "Optimal"],
+        inplace=True,
+    )
+
+    fig = sns.catplot(
+        data=dfts,
+        x="month",
+        y="Stock",
+        kind="bar",
+        hue="Strategy",
+        legend_out=False,
+        estimator="mean",
+        errorbar=None,
+        height=5,
+        aspect=1.75,
+        **kwargs,
+    )
+    logger.debug("items %s", fig.axes_dict.items())
+    for phase, ax in fig.axes_dict.items():
+        logger.debug(phase)
+        if type(phase) == tuple:
+            data_line_plot = dfts[
+                (dfts["phase"] == phase[1]) & (dfts["treatment"] == phase[0])
+            ]
+        elif type(phase) == str:
+            data_line_plot = dfts[dfts["phase"] == phase]
+        ax2 = ax.twinx()
+        sns.lineplot(
+            data=data_line_plot,
+            legend=None,
+            x="month",
+            y="Savings",
+            hue="Strategy",
+            ci=None,
+            ax=ax2,
+            palette=kwargs["palette"],
+        )
+        ax2.set_ylim(0, dfts["Savings"].max() + 500)
+
+    ax2.set_xticks(ax2.get_xticks()[0:120:12])
+    plt.tight_layout()
+    plt.show()
 
 
 def main() -> None:
@@ -389,95 +478,14 @@ def main() -> None:
         timestr = time.strftime("%Y%m%d-%H%M%S")
         logging.info(timestr)
         file_name = f"{final_dir}/{FINAL_FILE_PREFIX}_{timestr}.csv"
-        df_str.to_csv(file_name, sep=";")
+        df_opp_cost.to_csv(file_name, sep=";")
         logging.info("Created %s", file_name)
 
     graph_data = input("Plot data? (y/n):")
     if graph_data != "y" and graph_data != "n":
         graph_data = input("Please respond with 'y' or 'n':")
     if graph_data == "y":
-        # ! Filter for just session on/after 20-06-2024
-        df_str_filtered = df_str.copy()
-        print(f"{df_str_filtered['participant.label'].nunique()} participants included")
-        ## Convert to time series-esque dataframe for multi-bar plot
-        df_stock = df_str_filtered.melt(
-            id_vars=[
-                "participant.code",
-                "participant.label",
-                "treatment",
-                "participant.inflation",
-                "phase",
-                "month",
-            ],
-            var_name="Strategy",
-            value_vars=["participant.inflation", "finalStock", "sgoptimal", "sgnaive"],
-            value_name="Stock",
-        )
-
-        df_savings = df_str_filtered.melt(
-            id_vars=[
-                "participant.code",
-                "participant.label",
-                "treatment",
-                "participant.inflation",
-                "phase",
-                "month",
-            ],
-            var_name="Strategy",
-            value_vars=["participant.inflation", "sreal", "soptimal", "snaive"],
-            value_name="Savings",
-        )
-
-        dfts = pd.concat([df_stock, df_savings], axis=1, join="inner")
-
-        dfts.drop_duplicates(inplace=True)
-
-        ## Remove duplicate columns
-        dfts = dfts.loc[:, ~dfts.columns.duplicated()].copy()
-
-        ## Rename strategies
-        dfts.Strategy.replace(
-            ["finalStock", "sgnaive", "sgoptimal"],
-            ["Average", "Naive", "Optimal"],
-            inplace=True,
-        )
-
-        fig = sns.catplot(
-            data=dfts,
-            x="month",
-            y="Stock",
-            kind="bar",
-            col="phase",
-            row="treatment",
-            palette="tab10",
-            hue="Strategy",
-            legend_out=False,
-            estimator="mean",
-            errorbar=None,
-            height=5,
-            aspect=1.75,
-        )
-        print("items", fig.axes_dict.items())
-        for phase, ax in fig.axes_dict.items():
-            print(phase)
-            ax2 = ax.twinx()
-            sns.lineplot(
-                data=dfts[
-                    (dfts["phase"] == phase[1]) & (dfts["treatment"] == phase[0])
-                ],
-                legend=None,
-                x="month",
-                y="Savings",
-                palette="tab10",
-                hue="Strategy",
-                ci=None,
-                ax=ax2,
-            )
-            ax2.set_ylim(0, dfts["Savings"].max() + 500)
-
-        ax2.set_xticks(ax2.get_xticks()[0:120:12])
-        plt.tight_layout()
-        plt.show()
+        plot_savings_and_stock(df_opp_cost, col="phase", palette="tab10")
 
 
 if __name__ == "__main__":

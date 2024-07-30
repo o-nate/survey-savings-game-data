@@ -10,18 +10,12 @@ and after_430 is mean(quantity months 31-33) / `decision quantity` at start of m
 import logging
 import sys
 
-# from pathlib import Path
-# from typing import List, Dict
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
 
-# from tqdm.auto import tqdm
-
-# from preprocess import final_df_dict
-from calc_opp_costs import df_str
+from src.calc_opp_costs import df_opp_cost
 from src.utils.logging_helpers import set_external_module_log_levels
 
 # * Logging settings
@@ -104,7 +98,7 @@ def purchase_discontinuity(
 
 def main() -> None:
     """Run script"""
-    df_disc = df_str[df_str.columns.to_list()[:13]].copy()
+    df_disc = df_opp_cost[df_opp_cost.columns.to_list()[:13]].copy()
     print(df_disc.head())
     logging.debug(df_disc.shape)
 
@@ -112,8 +106,6 @@ def main() -> None:
         df_disc, decision_quantity=DECISION_QUANTITY, window=WINDOW
     )
 
-    # ! Filter for just 20/6/2024
-    df_disc = df_disc[df_disc["date"] >= "2024-06-20"]
     print("-------------------------------------------------------------")
     print(f"{df_disc['participant.label'].nunique()} participants included")
     print(df_disc.head())
@@ -127,8 +119,6 @@ def main() -> None:
     logging.debug(df_disc.shape)
     ## Assign starting month
     scatter_dict = {
-        # 1012: {"month": CHANGE_1012, "title": "10x12 (1st inflation increase)"},
-        # "1012_2": {"month": CHANGE_1012_2, "title": "10x12 (2nd inflation increase)"},
         430: {
             "month": CHANGE_430,
             "title": "4x30 (Pre-treatment)",
@@ -142,8 +132,6 @@ def main() -> None:
     }
 
     sequence_layout = [
-        # 1012,
-        # "1012_2",
         430,
         "430_2",
     ]  ## Define which side each sequence should be on

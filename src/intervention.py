@@ -10,7 +10,7 @@ import pandas as pd
 from scipy import stats
 import seaborn as sns
 
-from calc_opp_costs import df_str
+from calc_opp_costs import df_opp_cost
 from discontinuity import purchase_discontinuity
 from preprocess import final_df_dict
 from src.utils.logging_helpers import set_external_module_log_levels
@@ -100,7 +100,7 @@ def main() -> None:
     """Run script"""
     df_int = final_df_dict["task_int"].copy()
 
-    df_results = df_str.copy()
+    df_results = df_opp_cost.copy()
     logging.debug(df_results.shape)
 
     df_results = purchase_discontinuity(
