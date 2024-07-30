@@ -3,13 +3,13 @@
 import logging
 import sys
 
-from functools import reduce
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
-from preprocess import final_df_dict
+from src.preprocess import final_df_dict
 from src.utils.logging_helpers import set_external_module_log_levels, INF_430
+from src.utils.helpers import combine_series
 
 # * Logging settings
 logger = logging.getLogger(__name__)
@@ -28,9 +28,17 @@ def create_survey_df() -> pd.DataFrame:
     df3 = final_df_dict["qualitative_expectation"].copy()
     df4 = final_df_dict["qualitative_estimate"].copy()
     dfs = [df1, df2, df3, df4]
-    df5 = reduce(
-        lambda df_left, df_right: pd.merge(df_left, df_right, how="left"),
+    df5 = combine_series(
         dfs,
+        on=[
+            "participant.code",
+            "participant.label",
+            "participant.inflation",
+            "treatment",
+            "date",
+            "participant.round",
+        ],
+        how="left",
     )
     logger.debug(df5.columns.to_list())
     df_survey = df5.melt(
@@ -110,9 +118,15 @@ def create_survey_df() -> pd.DataFrame:
 def main() -> None:
     """Run script"""
     data = create_survey_df()
+    logger.debug(
+        "for testing %s",
+        data[
+            (data["participant.label"] == "xVRXlxl")
+            & (data["participant.round"] == 2)
+            & (data["Month"] == 36)
+        ],
+    )
 
-    # ! Filter for just 03-07-2024
-    # data = data[data["date"] >= "2024-07-03"]
     print("participants included: ", data["participant.label"].nunique())
 
     # # * Plot qualitative responses
