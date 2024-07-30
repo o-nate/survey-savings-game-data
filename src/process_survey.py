@@ -8,7 +8,8 @@ import pandas as pd
 import seaborn as sns
 
 from src.preprocess import final_df_dict
-from src.utils.logging_helpers import set_external_module_log_levels, INF_430
+from src.utils.constants import INFLATION_DICT
+from src.utils.logging_helpers import set_external_module_log_levels
 from src.utils.helpers import combine_series
 
 # * Logging settings
@@ -84,26 +85,9 @@ def create_survey_df() -> pd.DataFrame:
     print(df_survey.head())
 
     # * Add actual inflation
-    inf_dict = {
-        "participant.inflation": [
-            430 for m in range(40)
-        ],  # + [1012 for m in range(19)],
-        "participant.round": [1 for m in range(10)]
-        + [1 for m in range(10)]
-        + [2 for m in range(10)]
-        + [2 for m in range(10)],
-        "Month": [(m + 1) * 12 for m in range(10)]
-        + [m * 12 for m in range(10)]
-        + [(m + 1) * 12 for m in range(10)]
-        + [m * 12 for m in range(10)],
-        "Measure": ["Actual" for m in range(10)]
-        + ["Upcoming" for m in range(10)]
-        + ["Actual" for m in range(10)]
-        + ["Upcoming" for m in range(10)],
-        "Estimate": INF_430 + INF_430 + INF_430 + INF_430,  # + INF_1012 + INF_1012[1:],
-    }
+    logger.debug("INFLATION_DICT %s", INFLATION_DICT)
     ## Convert to dataframe
-    df_inf = pd.DataFrame(inf_dict)
+    df_inf = pd.DataFrame(INFLATION_DICT)
     ## Merge with survey responses
     df_survey = pd.concat([df_survey, df_inf], ignore_index=True)
     df_survey["participant.inflation"].replace(

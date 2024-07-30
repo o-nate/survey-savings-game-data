@@ -2,10 +2,6 @@
 
 import logging
 
-## Define annualized inflation, per 12 months
-INF_1012 = [0.45, 60.79, 0.45, 60.79, 0.45, 60.79, 0.45, 60.79, 0.45, 60.79]
-INF_430 = [0.38, 0.47, 26.85, 55.49, 64.18, 0.38, 0.47, 26.85, 55.49, 64.18]
-
 
 def set_external_module_log_levels(level: str) -> None:
     """Disable logger ouputs for other modules up to defined `level`"""
