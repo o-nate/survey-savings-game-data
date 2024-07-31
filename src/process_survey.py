@@ -35,6 +35,36 @@ def calculate_estimate_bias(
     return df[real_inflation_col] - df[estimate_col]
 
 
+def calculate_estimate_sensitivity(
+    data: pd.DataFrame,
+    estimate_col: str,
+    real_inflation_col: str,
+    new_column_name: str,
+    fill_nans: bool = True,
+) -> pd.DataFrame:
+    """Pearson correlation between inflation estimations (expectations and perceptions)
+    and realized inflation rate
+
+    Args:
+        data (pd.DataFrame)
+        estimate_col (str): Name of column with estimate data
+        real_inflation_col (str): Name of column with inflation data
+        new_column_name (str): Name for new column
+        fill_nans (bool): Fill occurances with no change (std = 0) with 0's
+
+    Returns:
+        pd.DataFrame: DataFrame with Pearson correlation coefficient, one for
+        each participant.code
+    """
+    data_corr = pd.DataFrame(
+        data.groupby(["participant.code"])[estimate_col].corr(data[real_inflation_col])
+    ).reset_index()
+    data_corr.rename(columns={estimate_col: new_column_name}, inplace=True)
+    if fill_nans:
+        return data_corr.fillna(0)
+    return data_corr
+
+
 def pivot_inflation_measures(df: pd.DataFrame) -> pd.DataFrame:
     """Pivots inflation and inflation estimate dataframes to calculate inflation measures
 
@@ -170,9 +200,16 @@ def create_survey_df() -> pd.DataFrame:
 
 def main() -> None:
     """Run script"""
-    data = create_survey_df()
-    measures = pivot_inflation_measures(data)
-    logger.debug(measures.shape)
+    for estimate, actual in zip(["Perception", "Expectation"], ["Actual", "Upcoming"]):
+        df_measures[f"{estimate}_bias"] = calculate_estimate_bias(
+            df_measures, f"Quant {estimate}", actual
+        )
+        df_sensitivity = calculate_estimate_sensitivity(
+            df_measures, f"Quant {estimate}", actual, f"{estimate}_sensitivity"
+        )
+        df_measures = df_measures.merge(df_sensitivity, how="left")
+
+    print(df_measures.head())
 
     print("participants included: ", data["participant.label"].nunique())
 
