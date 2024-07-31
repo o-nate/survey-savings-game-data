@@ -31,10 +31,20 @@ data = data[
 for k, v in constants.TEST_CREATE_VALUES.items():
     assert data[data["Measure"] == k]["Estimate"].iat[0] == v
 
+
 logger.info("Testing pivot function")
 data = create_survey_df()
 df = pivot_inflation_measures(data)
+logger.debug("df shape %s", df.shape)
 assert df.shape[0] == constants.TEST_PIVOT_DF_LEN
+
+result = df["Quant Expectation"].mean()
+logger.debug("exp mean: %s compare to %s", result, constants.TEST_PIVOT_AVG_QUANT_EXP)
+assert math.isclose(
+    result,
+    constants.TEST_PIVOT_AVG_QUANT_EXP,
+    rel_tol=constants.TEST_PIVOT_ERROR_MARGIN,
+)
 
 logger.info("Testing estimate measure calculations")
 for estimate, actual in zip(["Perception", "Expectation"], ["Actual", "Upcoming"]):
@@ -82,7 +92,9 @@ logger.debug(
     constants.TEST_CALCULATE_SENSITIVITY_EXPECTATION_VALUE,
 )
 assert math.isclose(
-    result, constants.TEST_CALCULATE_SENSITIVITY_EXPECTATION_VALUE, rel_tol=0.02
+    result,
+    constants.TEST_CALCULATE_SENSITIVITY_EXPECTATION_VALUE,
+    rel_tol=constants.TEST_CALCULATE_SENSITIVITY_EXPECTATION_ERROR_MARGIN,
 )
 
 logger.info("Testing sensitivity calculator remove nans")
@@ -110,7 +122,7 @@ assert (
 
 logger.info("Testing include measures function")
 df2 = pivot_inflation_measures(data)
-df2 = include_inflation_measures(df2)
+df2 = include_inflation_measures(df2, fill_nans=False)
 logger.debug("df2: %s df: %s", df2.shape, df.shape)
 assert df2.shape == df.shape
 assert (
@@ -121,8 +133,25 @@ assert (
         )
         & (df2["Month"] == constants.TEST_CALCULATE_SENSITIVITY_MONTH)
     ]["Expectation_sensitivity"].values[0]
-    == constants.TEST_CALCULATE_SENSITIVITY_VALUE_NO_NANS
+    != constants.TEST_CALCULATE_SENSITIVITY_VALUE_NO_NANS
 )
 
+
+logger.info(
+    """Testing correction for qualitative-quantitative estimate matching 
+            (making sure negative qualitative responses have negative quantitative 
+            and vice versa)"""
+)
+df2 = pivot_inflation_measures(data)
+df_describe = df2.describe().T
+count_quant_exp = df2["Quant Expectation"].count()
+mean_quant_percp = df2["Quant Perception"].mean()
+logger.debug("exp count: %s, mean percp: %s", count_quant_exp, mean_quant_percp)
+assert count_quant_exp == constants.TEST_CREATE_QUANT_EXP_COUNT
+assert math.isclose(
+    mean_quant_percp,
+    constants.TEST_CREATE_QUANT_PERCEP_AVG,
+    rel_tol=constants.TEST_CALCULATE_SENSITIVITY_EXPECTATION_ERROR_MARGIN,
+)
 
 logger.info("Test complete")

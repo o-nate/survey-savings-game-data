@@ -4,6 +4,7 @@ import logging
 import sys
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import seaborn as sns
 
@@ -125,7 +126,6 @@ def pivot_inflation_measures(data: pd.DataFrame) -> pd.DataFrame:
             "Month",
         ],
         columns="Measure",
-        fill_value=0,
     )
 
     ## Remove multiindex columns
@@ -173,6 +173,95 @@ def create_survey_df(include_inflation: bool = False) -> pd.DataFrame:
         ],
         how="left",
     )
+    logger.debug(df5.columns.to_list())
+    # * Interpolate qualitative responses of no change as 0 for quantitative
+    perception_cols = [f"task.{month*12}.player.inf_estimate" for month in range(1, 11)]
+    qual_perception_cols = [
+        f"task.{month*12}.player.qualitative_estimate" for month in range(1, 11)
+    ]
+    expectation_cols = [
+        (
+            f"task.{month+1}.player.inf_expectation"
+            if month == 0
+            else f"task.{month*12}.player.inf_expectation"
+        )
+        for month in range(10)
+    ]
+    qual_expectation_cols = [
+        (
+            f"task.{month+1}.player.qualitative_expectation"
+            if month == 0
+            else f"task.{month*12}.player.qualitative_expectation"
+        )
+        for month in range(10)
+    ]
+    for qual, quant in zip(qual_perception_cols, perception_cols):
+        df5[quant] = np.where(df5[qual] == 0, 0, df5[quant])
+        df5[quant] = np.select(
+            [
+                (df5[qual] > 0) & (df5[quant] >= 0),
+                (df5[qual] < 0) & (df5[quant] > 0),
+                (df5[qual] > 0) & (df5[quant] < 0),
+                df5[quant].isna(),
+            ],
+            [
+                df5[quant],
+                df5[quant] * -1,
+                df5[quant] * -1,
+                df5[quant],
+            ],
+        )
+    for qual, quant in zip(qual_expectation_cols, expectation_cols):
+        df5[quant] = np.where(df5[qual] == 0, 0, df5[quant])
+        df5[quant] = np.select(
+            [
+                (df5[qual] > 0) & (df5[quant] >= 0),
+                (df5[qual] < 0) & (df5[quant] > 0),
+                (df5[qual] > 0) & (df5[quant] < 0),
+                df5[quant].isna(),
+            ],
+            [
+                df5[quant],
+                df5[quant] * -1,
+                df5[quant] * -1,
+                df5[quant],
+            ],
+        )
+    # for month in range(1, 11):
+    #     df5[f"task.{month*12}.player.inf_estimate"] = np.where(
+    #         df5[f"task.{month*12}.player.qualitative_estimate"] == 0,
+    #         0,
+    #         df5[f"task.{month*12}.player.inf_estimate"],
+    #     )
+    #     df5[f"task.{month*12}.player.inf_estimate"] = np.where(
+    #         df5[f"task.{month*12}.player.qualitative_estimate"] < 0,
+    #         -1 * df5[f"task.{month*12}.player.inf_estimate"],
+    #         df5[f"task.{month*12}.player.inf_estimate"],
+    #     )
+    # for month in range(10):
+    #     if month == 0:
+    #         df5[f"task.{month+1}.player.inf_expectation"] = np.where(
+    #             df5[f"task.{month+1}.player.qualitative_expectation"] == 0,
+    #             0,
+    #             df5[f"task.{month+1}.player.inf_expectation"],
+    #         )
+    #         df5[f"task.{month+1}.player.inf_expectation"] = np.where(
+    #             df5[f"task.{month+1}.player.qualitative_expectation"] < 0,
+    #             -1 * df5[f"task.{month+1}.player.inf_expectation"],
+    #             df5[f"task.{month+1}.player.inf_expectation"],
+    #         )
+    #     else:
+    #         df5[f"task.{month*12}.player.inf_expectation"] = np.where(
+    #             df5[f"task.{month*12}.player.qualitative_expectation"] == 0,
+    #             0,
+    #             df5[f"task.{month*12}.player.inf_expectation"],
+    #         )
+    #         df5[f"task.{month*12}.player.inf_expectation"] = np.where(
+    #             df5[f"task.{month*12}.player.qualitative_expectation"] < 0,
+    #             -1 * df5[f"task.{month*12}.player.inf_expectation"],
+    #             df5[f"task.{month*12}.player.inf_expectation"],
+    #         )
+
     logger.debug(df5.columns.to_list())
     df_survey = df5.melt(
         id_vars=[
