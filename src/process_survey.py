@@ -65,6 +65,29 @@ def calculate_estimate_sensitivity(
     return data_corr
 
 
+def include_inflation_measures(data: pd.DataFrame) -> pd.DataFrame:
+    """Adds inflation measure columns to DataFrame
+
+    Args:
+        data (pd.DataFrame): DataFrame with columns 'Quant Perception', 'Quant Expectation',
+        'Actual', and 'Upcoming' inflation measures
+
+    Returns:
+        pd.DataFrame: DataFrame with column for each new measure with '_bias' and '_sensitivity'
+        suffixes
+    """
+    final_data = data.copy()
+    for estimate, actual in zip(["Perception", "Expectation"], ["Actual", "Upcoming"]):
+        final_data[f"{estimate}_bias"] = calculate_estimate_bias(
+            final_data, f"Quant {estimate}", actual
+        )
+        _ = calculate_estimate_sensitivity(
+            final_data, f"Quant {estimate}", actual, f"{estimate}_sensitivity"
+        )
+        final_data = final_data.merge(_, how="left")
+    return final_data
+
+
 def pivot_inflation_measures(data: pd.DataFrame) -> pd.DataFrame:
     """Pivots inflation and inflation estimate dataframes to calculate inflation df_measures
 
@@ -208,14 +231,7 @@ def main() -> None:
     """Run script"""
     df = create_survey_df()
     df_measures = pivot_inflation_measures(df)
-    for estimate, actual in zip(["Perception", "Expectation"], ["Actual", "Upcoming"]):
-        df_measures[f"{estimate}_bias"] = calculate_estimate_bias(
-            df_measures, f"Quant {estimate}", actual
-        )
-        df_sensitivity = calculate_estimate_sensitivity(
-            df_measures, f"Quant {estimate}", actual, f"{estimate}_sensitivity"
-        )
-        df_measures = df_measures.merge(df_sensitivity, how="left")
+    df_measures = include_inflation_measures(df_measures)
 
     print(df_measures.head())
 

@@ -11,6 +11,7 @@ from src.process_survey import (
     pivot_inflation_measures,
     calculate_estimate_bias,
     calculate_estimate_sensitivity,
+    include_inflation_measures,
 )
 from src.utils.logging_helpers import set_external_module_log_levels
 
@@ -103,6 +104,22 @@ assert (
             == constants.TEST_CALCULATE_SENSITIVITY_PARTICIPANT_CODE_NO_NANS
         )
         & (df["Month"] == constants.TEST_CALCULATE_SENSITIVITY_MONTH)
+    ]["Expectation_sensitivity"].values[0]
+    == constants.TEST_CALCULATE_SENSITIVITY_VALUE_NO_NANS
+)
+
+logger.info("Testing include measures function")
+df2 = pivot_inflation_measures(data)
+df2 = include_inflation_measures(df2)
+logger.debug("df2: %s df: %s", df2.shape, df.shape)
+assert df2.shape == df.shape
+assert (
+    df2[
+        (
+            df2["participant.code"]
+            == constants.TEST_CALCULATE_SENSITIVITY_PARTICIPANT_CODE_NO_NANS
+        )
+        & (df2["Month"] == constants.TEST_CALCULATE_SENSITIVITY_MONTH)
     ]["Expectation_sensitivity"].values[0]
     == constants.TEST_CALCULATE_SENSITIVITY_VALUE_NO_NANS
 )
