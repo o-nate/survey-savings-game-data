@@ -122,11 +122,30 @@ plt.grid()
 
 # %% [markdown]
 ### Quality of inflation expectations and perceptions and performance
-df_survey = process_survey.create_survey_df()
-df_inf_measures = process_survey.pivot_inflation_measures(df_survey)
-df_inf_measures["perception_bias"] = process_survey.calculate_estimate_bias(
-    df_inf_measures, "Quant Perception", "Actual"
+df_survey = process_survey.create_survey_df(include_inflation=True)
+
+# * Plot estimates over time
+estimates = ["Quant Perception", "Quant Expectation", "Actual", "Upcoming"]
+g = sns.relplot(
+    data=df_survey[df_survey["Measure"].isin(estimates)],
+    x="Month",
+    y="Estimate",
+    errorbar=None,
+    hue="Measure",
+    style="Measure",
+    kind="line",
+    col="participant.round",
 )
+
+## Adjust titles
+(g.set_axis_labels("Month", "Inflation rate (%)").tight_layout(w_pad=0.5))
+plt.show()
+
+# %%
+df_inf_measures = process_survey.pivot_inflation_measures(df_survey)
+df_inf_measures = process_survey.include_inflation_measures(df_inf_measures)
+
+df_inf_measures[df_inf_measures["participant.round"] == 1].describe().T
 
 #### Relationship between expectations, perceptions, and decisions
 
