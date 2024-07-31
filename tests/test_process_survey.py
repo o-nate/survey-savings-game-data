@@ -1,9 +1,17 @@
 """Tests for process_survey module"""
 
 import logging
+import math
 import sys
 
-from src.process_survey import create_survey_df, pivot_inflation_measures
+from utils import constants
+
+from src.process_survey import (
+    create_survey_df,
+    pivot_inflation_measures,
+    calculate_estimate_bias,
+    calculate_estimate_sensitivity,
+)
 from src.utils.logging_helpers import set_external_module_log_levels
 
 
@@ -13,28 +21,91 @@ set_external_module_log_levels("Error")
 logger.setLevel(logging.DEBUG)
 logger.addHandler(logging.StreamHandler(sys.stdout))
 
-TEST_PARTICIPANT_CODE = "17c9d4zc"
-TEST_MONTH = 36
-TEST_VALUES = {
-    "Quant Expectation": 10.0,
-    "Quant Perception": 3.0,
-    "Qual Expectation": 3.0,
-    "Qual Perception": 2.0,
-}
-TEST_DF_LEN = 3454
-
 logger.info("Testing process_survey module")
 data = create_survey_df()
 data = data[
-    (data["participant.code"] == TEST_PARTICIPANT_CODE) & (data["Month"] == TEST_MONTH)
+    (data["participant.code"] == constants.TEST_CREATE_PARTICIPANT_CODE)
+    & (data["Month"] == constants.TEST_CREATE_MONTH)
 ]
-for k, v in TEST_VALUES.items():
+for k, v in constants.TEST_CREATE_VALUES.items():
     assert data[data["Measure"] == k]["Estimate"].iat[0] == v
 
 logger.info("Testing pivot function")
 data = create_survey_df()
 df = pivot_inflation_measures(data)
-assert df.shape[0] == TEST_DF_LEN
+assert df.shape[0] == constants.TEST_PIVOT_DF_LEN
+
+logger.info("Testing estimate measure calculations")
+for estimate, actual in zip(["Perception", "Expectation"], ["Actual", "Upcoming"]):
+    df[f"{estimate}_bias"] = calculate_estimate_bias(df, f"Quant {estimate}", actual)
+    _ = calculate_estimate_sensitivity(
+        df, f"Quant {estimate}", actual, f"{estimate}_sensitivity"
+    )
+    df = df.merge(_, how="left")
+
+logger.info("Testing bias calculation")
+assert (
+    df[
+        (df["participant.code"] == constants.TEST_CALCULATE_BIAS_PARTICIPANT_CODE)
+        & (df["Month"] == constants.TEST_CALCULATE_BIAS_MONTH)
+    ]["Perception_bias"].values[0]
+    == constants.TEST_CALCULATE_BIAS_PERCEPTION
+)
+
+assert (
+    df[
+        (df["participant.code"] == constants.TEST_CALCULATE_BIAS_PARTICIPANT_CODE)
+        & (df["Month"] == constants.TEST_CALCULATE_BIAS_MONTH)
+    ]["Expectation_bias"].values[0]
+    == constants.TEST_CALCULATE_BIAS_EXPECTATION
+)
+
+logger.info("Testing sensitivity calculator")
+assert (
+    df[
+        (
+            df["participant.code"]
+            == constants.TEST_CALCULATE_SENSITIVITY_PARTICIPANT_CODE
+        )
+        & (df["Month"] == constants.TEST_CALCULATE_SENSITIVITY_MONTH)
+    ]["Perception_sensitivity"].values[0]
+    == constants.TEST_CALCULATE_SENSITIVITY_PERCEPTION_VALUE
+)
+result = df[
+    (df["participant.code"] == constants.TEST_CALCULATE_SENSITIVITY_PARTICIPANT_CODE)
+    & (df["Month"] == constants.TEST_CALCULATE_SENSITIVITY_MONTH)
+]["Expectation_sensitivity"].values[0]
+logger.debug(
+    "result:  %s, test value: %s",
+    result,
+    constants.TEST_CALCULATE_SENSITIVITY_EXPECTATION_VALUE,
+)
+assert math.isclose(
+    result, constants.TEST_CALCULATE_SENSITIVITY_EXPECTATION_VALUE, rel_tol=0.02
+)
+
+logger.info("Testing sensitivity calculator remove nans")
+assert (
+    df[
+        (
+            df["participant.code"]
+            == constants.TEST_CALCULATE_SENSITIVITY_PARTICIPANT_CODE_NO_NANS
+        )
+        & (df["Month"] == constants.TEST_CALCULATE_SENSITIVITY_MONTH)
+    ]["Perception_sensitivity"].values[0]
+    == constants.TEST_CALCULATE_SENSITIVITY_VALUE_NO_NANS
+)
+
+assert (
+    df[
+        (
+            df["participant.code"]
+            == constants.TEST_CALCULATE_SENSITIVITY_PARTICIPANT_CODE_NO_NANS
+        )
+        & (df["Month"] == constants.TEST_CALCULATE_SENSITIVITY_MONTH)
+    ]["Expectation_sensitivity"].values[0]
+    == constants.TEST_CALCULATE_SENSITIVITY_VALUE_NO_NANS
+)
 
 
 logger.info("Test complete")
