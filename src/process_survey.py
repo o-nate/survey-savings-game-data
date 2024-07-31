@@ -66,7 +66,7 @@ def calculate_estimate_sensitivity(
 
 
 def pivot_inflation_measures(df: pd.DataFrame) -> pd.DataFrame:
-    """Pivots inflation and inflation estimate dataframes to calculate inflation measures
+    """Pivots inflation and inflation estimate dataframes to calculate inflation df_measures
 
     Args:
         df (pd.DataFrame): _description_
@@ -80,10 +80,13 @@ def pivot_inflation_measures(df: pd.DataFrame) -> pd.DataFrame:
         index=["participant.inflation", "participant.round", "Month"],
         columns="Measure",
     )
+
+    ## Remove multiindex columns
     df_inf.columns = [
         "_".join(str(i) for i in a) for a in df_inf.columns.to_flat_index()
     ]
     df_inf.reset_index(inplace=True)
+
     df_pivot = pd.pivot_table(
         data=df,
         index=[
@@ -97,16 +100,19 @@ def pivot_inflation_measures(df: pd.DataFrame) -> pd.DataFrame:
         columns="Measure",
         fill_value=0,
     )
-    # Remove multiindex
+
+    ## Remove multiindex columns
     df_pivot.columns = [
         "_".join(str(i) for i in a) for a in df_pivot.columns.to_flat_index()
     ]
     df_pivot.reset_index(inplace=True)
+
     df_pivot = df_pivot.merge(
         df_inf[[c for c in df_inf.columns if "inflation" not in c]],
         how="left",
         on=["Month", "participant.round"],
     )
+
     df_pivot.rename(
         columns={
             col: col.removeprefix("Estimate_")
@@ -163,7 +169,7 @@ def create_survey_df() -> pd.DataFrame:
         pd.to_numeric, errors="ignore"
     )
 
-    # * Rename measures
+    # * Rename df_measures
     df_survey["Measure"] = df_survey["Measure"].str.split("player.").str[1]
     df_survey["Measure"].replace(
         [
@@ -200,6 +206,8 @@ def create_survey_df() -> pd.DataFrame:
 
 def main() -> None:
     """Run script"""
+    df = create_survey_df()
+    df_measures = pivot_inflation_measures(df)
     for estimate, actual in zip(["Perception", "Expectation"], ["Actual", "Upcoming"]):
         df_measures[f"{estimate}_bias"] = calculate_estimate_bias(
             df_measures, f"Quant {estimate}", actual
@@ -211,17 +219,17 @@ def main() -> None:
 
     print(df_measures.head())
 
-    print("participants included: ", data["participant.label"].nunique())
+    print("participants included: ", df["participant.label"].nunique())
 
     # # * Plot qualitative responses
     qual_responses = ["Qual Perception", "Qual Expectation"]
-    print(data[data["Measure"].isin(qual_responses)].head())
+    print(df[df["Measure"].isin(qual_responses)].head())
 
-    data2 = data.copy()
-    data2["Month"] = data2["Month"].astype(str)
+    df2 = df.copy()
+    df2["Month"] = df2["Month"].astype(str)
 
     sns.catplot(
-        data=data2[data2["Measure"].isin(qual_responses)],
+        data=df2[df2["Measure"].isin(qual_responses)],
         x="Estimate",
         y="Month",
         col="Measure",
@@ -234,7 +242,7 @@ def main() -> None:
     # * Plot estimates over time
     estimates = ["Quant Perception", "Quant Expectation", "Actual", "Upcoming"]
     g = sns.relplot(
-        data=data[data["Measure"].isin(estimates)],
+        data=df[df["Measure"].isin(estimates)],
         x="Month",
         y="Estimate",
         errorbar=None,
@@ -251,7 +259,7 @@ def main() -> None:
         .tight_layout(w_pad=0.5)
     )
 
-    # sns.kdeplot(data=data[data["Measure"].isin(estimates)], x="Estimate", hue="Measure")
+    # sns.kdeplot(df=df[df["Measure"].isin(estimates)], x="Estimate", hue="Measure")
     # plt.yscale("log")
     # plt.xscale("log")
 
