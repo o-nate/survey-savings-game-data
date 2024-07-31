@@ -65,11 +65,11 @@ def calculate_estimate_sensitivity(
     return data_corr
 
 
-def pivot_inflation_measures(df: pd.DataFrame) -> pd.DataFrame:
+def pivot_inflation_measures(data: pd.DataFrame) -> pd.DataFrame:
     """Pivots inflation and inflation estimate dataframes to calculate inflation df_measures
 
     Args:
-        df (pd.DataFrame): _description_
+        data (pd.DataFrame): _description_
 
     Returns:
         pd.DataFrame: _description_
@@ -88,7 +88,7 @@ def pivot_inflation_measures(df: pd.DataFrame) -> pd.DataFrame:
     df_inf.reset_index(inplace=True)
 
     df_pivot = pd.pivot_table(
-        data=df,
+        data=data,
         index=[
             "participant.code",
             "participant.label",
