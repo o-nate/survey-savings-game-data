@@ -65,12 +65,16 @@ def calculate_estimate_sensitivity(
     return data_corr
 
 
-def include_inflation_measures(data: pd.DataFrame) -> pd.DataFrame:
+def include_inflation_measures(data: pd.DataFrame, **kwargs) -> pd.DataFrame:
     """Adds inflation measure columns to DataFrame
 
     Args:
         data (pd.DataFrame): DataFrame with columns 'Quant Perception', 'Quant Expectation',
         'Actual', and 'Upcoming' inflation measures
+
+    Kwargs:
+        fill_nans (bool):  Fill occurances with no change (std = 0) with 0's for
+        sensitivity measures
 
     Returns:
         pd.DataFrame: DataFrame with column for each new measure with '_bias' and '_sensitivity'
@@ -82,7 +86,7 @@ def include_inflation_measures(data: pd.DataFrame) -> pd.DataFrame:
             final_data, f"Quant {estimate}", actual
         )
         _ = calculate_estimate_sensitivity(
-            final_data, f"Quant {estimate}", actual, f"{estimate}_sensitivity"
+            final_data, f"Quant {estimate}", actual, f"{estimate}_sensitivity", **kwargs
         )
         final_data = final_data.merge(_, how="left")
     return final_data
