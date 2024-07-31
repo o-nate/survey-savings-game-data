@@ -151,7 +151,7 @@ def pivot_inflation_measures(data: pd.DataFrame) -> pd.DataFrame:
     return df_pivot
 
 
-def create_survey_df() -> pd.DataFrame:
+def create_survey_df(include_inflation: bool = False) -> pd.DataFrame:
     """Creates a merged dataframe with the estimates (perceptions
     and expectations) and actual inflation in a single dataframe"""
 
@@ -217,11 +217,12 @@ def create_survey_df() -> pd.DataFrame:
     print(df_survey.head())
 
     # * Add actual inflation
-    logger.debug("INFLATION_DICT %s", INFLATION_DICT)
-    ## Convert to dataframe
-    df_inf = pd.DataFrame(INFLATION_DICT)
-    ## Merge with survey responses
-    df_survey = pd.concat([df_survey, df_inf], ignore_index=True)
+    if include_inflation:
+        logger.debug("INFLATION_DICT %s", INFLATION_DICT)
+        ## Convert to dataframe
+        df_inf = pd.DataFrame(INFLATION_DICT)
+        ## Merge with survey responses
+        df_survey = pd.concat([df_survey, df_inf], ignore_index=True)
     df_survey["participant.inflation"].replace(
         [430, 1012],
         ["4x30", "10x12"],
