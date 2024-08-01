@@ -220,6 +220,33 @@ create_correlation_matrix(
 
 # %% [markdown]
 ##### Difference between quantitative and qualitative estimates
+# %%
+## Determine whether qualitative estimates were accurate
+conditions_list = [
+    (df_inf_measures["inf_phase"] == "high") & (df_inf_measures["Qual Perception"] > 1),
+    (df_inf_measures["inf_phase"] == "low")
+    & (df_inf_measures["Qual Perception"] >= 0)
+    & (df_inf_measures["Qual Perception"] <= 1),
+    df_inf_measures["Qual Perception"].isna(),
+]
+df_inf_measures["Qual Perception Accuracy"] = np.select(
+    conditions_list, [1, 1, np.NaN], default=0
+)
+
+conditions_list = [
+    (df_inf_measures.groupby("participant.code")["inf_phase"].shift(-1) == "high")
+    & (df_inf_measures["Qual Expectation"] > 1),
+    (df_inf_measures.groupby("participant.code")["inf_phase"].shift(-1) == "low")
+    & (df_inf_measures["Qual Expectation"] >= 0)
+    & (df_inf_measures["Qual Expectation"] <= 1),
+    df_inf_measures["Qual Expectation"].isna(),
+]
+
+df_inf_measures["Qual Expectation Accuracy"] = np.select(
+    conditions_list, [1, 1, np.NaN], default=0
+)
+
+df_inf_measures["Qual Perception Accuracy"].hist()
 
 # %% [markdown]
 ## Real life vs. savings game
