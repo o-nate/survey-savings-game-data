@@ -5,6 +5,7 @@ import logging
 import sys
 
 import matplotlib.pyplot as plt
+import numpy as np
 import seaborn as sns
 import pandas as pd
 
@@ -14,6 +15,7 @@ from src import calc_opp_costs, discontinuity, process_survey
 
 from src.calc_opp_costs import df_opp_cost
 from src.preprocess import final_df_dict
+from src.utils.helpers import create_correlation_matrix
 from src.utils.logging_helpers import set_external_module_log_levels
 
 # * Logging settings
@@ -21,6 +23,10 @@ logger = logging.getLogger(__name__)
 set_external_module_log_levels("error")
 logger.setLevel(logging.DEBUG)
 logger.addHandler(logging.StreamHandler(sys.stdout))
+
+# * Pandas settings
+pd.options.display.max_columns = None
+pd.options.display.max_rows = None
 
 # * Define `decision quantity` measure
 DECISION_QUANTITY = "cum_decision"
@@ -104,7 +110,6 @@ fig = sns.boxplot(
     x="Performance measure",
     y="Percent of maximum",
 )
-plt.grid()
 
 # %%
 df_pivot_measures = df_measures[
@@ -124,7 +129,6 @@ fig = sns.boxplot(
     y="Percent",
     hue="participant.round",
 )
-plt.grid()
 
 
 # %% [markdown]
@@ -157,8 +161,64 @@ df_inf_measures = process_survey.include_inflation_measures(df_inf_measures)
 
 df_inf_measures[df_inf_measures["participant.round"] == 1].describe().T
 
+# %% [markdown]
 #### Relationship between expectations, perceptions, and decisions
+df_inf_measures.rename(columns={"Month": "month"}, inplace=True)
+df_inf_measures = df_inf_measures.merge(
+    df_measures[[c for c in df_measures.columns if "participant.inflation" not in c]],
+    how="left",
+)
 
+# %%
+# Separate inflation measures by high- and low-inflation
+df_inf_measures["inf_phase"] = np.where(
+    df_inf_measures["inf_phase"] == 1,
+    "high",
+    "low",
+)
+
+df_bias = pd.pivot_table(
+    data=df_inf_measures[
+        [
+            "participant.code",
+            "inf_phase",
+            "Perception_bias",
+            "Expectation_bias",
+        ]
+    ],
+    index=["participant.code"],
+    columns="inf_phase",
+)
+df_bias = df_bias.reset_index()
+df_bias.columns = df_bias.columns.map("_".join)
+df_bias.reset_index(inplace=True)
+df_bias.head()
+
+df_bias.rename(columns={"participant.code_": "participant.code"}, inplace=True)
+
+df_inf_measures = df_inf_measures.merge(df_bias, how="left")
+
+# %%
+create_correlation_matrix(
+    df_inf_measures[
+        (df_inf_measures["participant.round"] == 1) & (df_inf_measures["month"] == 120)
+    ][
+        [
+            "Perception_sensitivity",
+            "Perception_bias_low",
+            "Perception_bias_high",
+            "Expectation_sensitivity",
+            "Expectation_bias_low",
+            "Expectation_bias_high",
+            "avg_q",
+            "avg_q_%",
+            "sreal",
+        ]
+    ],
+    p_values=[0.1, 0.05, 0.01],
+)
+
+# %% [markdown]
 ##### Difference between quantitative and qualitative estimates
 
 # %% [markdown]
