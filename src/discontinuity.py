@@ -46,54 +46,35 @@ def purchase_discontinuity(
 ) -> pd.DataFrame:
     """Generates dataframe with column for change in purchase behavior before
     and after inflation phase changes"""
-    cols_430 = [
-        m
-        for n in range(1, 120 // CHANGE_430)
-        for m in range(CHANGE_430 * n - window + 1, CHANGE_430 * n + window + 1)
-    ]
-    cols_1012 = [
-        m
-        for n in range(1, 120 // CHANGE_1012)
-        for m in range(CHANGE_1012 * n - window + 1, CHANGE_1012 * n + window + 1)
-    ]
-
-    logger.info("Months for 4x30: %s", cols_430)
-    logger.info("Months for 10x12: %s", cols_1012)
-
     ## Set `decision_quantity` to previous month's
     ## The `decision_quantity` at month=1 for each participant should be NaN
-    df[decision_quantity] = df.groupby("participant.code")[decision_quantity].shift(1)
+    ## since the decision at month=1 is based on `decision_quantity` at month=t-1
+    final_df = df.copy()
+    final_df[decision_quantity] = final_df.groupby("participant.code")[
+        decision_quantity
+    ].shift(1)
 
     ## Remove all `decision quantitys` except at first phase change (and third from 10x12)
-    df[decision_quantity] = np.where(
-        (
-            (df["participant.inflation"] == 1012)
-            & (df["month"] == CHANGE_1012 - (window - 1))
-        )
-        | (
-            (df["participant.inflation"] == 1012)
-            & (df["month"] == CHANGE_1012_2 - (window - 1))
-        )
-        | (
-            (df["participant.inflation"] == 430)
-            & (df["month"] == CHANGE_430 - (window - 1))
-        ),
-        df[decision_quantity],
+    final_df[decision_quantity] = np.where(
+        final_df["month"] == CHANGE_430 - (window - 1),
+        final_df[decision_quantity],
         np.NaN,
     )
 
     ## Forward fill `decision quantity` with value at start of first month in window
-    df[decision_quantity] = df.groupby("participant.code")[decision_quantity].ffill()
+    final_df[decision_quantity] = final_df.groupby("participant.code")[
+        decision_quantity
+    ].ffill()
 
     ## Take rolling average of quantity purchased with window and then
-    df["avg_q"] = df.groupby("participant.code")["decision"].transform(
+    final_df["avg_q"] = final_df.groupby("participant.code")["decision"].transform(
         lambda x: x.rolling(window).mean()
     )
 
     ## Calculate percentage of initial decision_quantity at start of window
-    df["avg_q_%"] = df["avg_q"] / df[decision_quantity] * 100
+    final_df["avg_q_%"] = final_df["avg_q"] / final_df[decision_quantity] * 100
 
-    return df
+    return final_df
 
 
 def main() -> None:

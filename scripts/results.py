@@ -76,6 +76,16 @@ df_measures = discontinuity.purchase_discontinuity(
     df_opp_cost, DECISION_QUANTITY, WINDOW
 )
 
+## Set avg_q and avg_q_% as month=33 value
+df_pivot_measures = pd.pivot_table(
+    df_measures[df_measures["month"] == 33][["participant.code", "avg_q", "avg_q_%"]],
+    index="participant.code",
+)
+df_pivot_measures.reset_index(inplace=True)
+df_measures = df_measures[[c for c in df_measures.columns if "avg_q" not in c]].merge(
+    df_pivot_measures, how="left"
+)
+
 # %%
 df_pivot_measures = df_measures[
     (df_measures["month"] == 120) & (df_measures["participant.round"] == 1)
