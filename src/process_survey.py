@@ -2,9 +2,11 @@
 
 import logging
 import sys
+from typing import Any, List, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 import seaborn as sns
 
@@ -93,6 +95,31 @@ def include_inflation_measures(data: pd.DataFrame, **kwargs) -> pd.DataFrame:
     return final_data
 
 
+def determine_qualitative_accuracy(
+    data: pd.DataFrame, qualitative_estimate_col: str, default: float
+) -> npt.NDArray:
+    """Generate series with boolean value for whether subjects' qualitative estimates
+    were in-line with inflation
+
+    Args:
+        data (pd.DataFrame): DataFrame with inflation estimates
+        qualitative_estimate_col (str): Name of column with qualitative estimate
+        conditions_list (List[Tuple[Any, Any]]): Conditions of accurate estimates
+        default (float): Default value to fill for 'else' clause
+
+    Returns:
+        npt.NDArray: Array with accuracy values
+    """
+    conditions_list = [
+        (data["inf_phase"] == "high") & (data[qualitative_estimate_col] > 1),
+        (data["inf_phase"] == "low")
+        & (data[qualitative_estimate_col] >= 0)
+        & (data[qualitative_estimate_col] <= 1),
+        data[qualitative_estimate_col].isna(),
+    ]
+    return np.select(conditions_list, [1, 1, np.NaN], default=default)
+
+
 def pivot_inflation_measures(data: pd.DataFrame) -> pd.DataFrame:
     """Pivots inflation and inflation estimate dataframes to calculate inflation df_measures
 
@@ -149,6 +176,29 @@ def pivot_inflation_measures(data: pd.DataFrame) -> pd.DataFrame:
         inplace=True,
     )
     return df_pivot
+
+
+def include_uncertainty_measure(
+    data: pd.DataFrame, estimate_col: str, val_uncertain: int, val_certain: int
+) -> pd.Series:
+    """
+    Generate a series with a proxy for uncertain estimations based on the assumption
+    that estimates that are multiples of 5 and not equal to 0 are uncertain.
+
+    Args:
+        data (pd.DataFrame): DataFrame with quantitative estimates
+        estimate_col (str): Name of column to evaluate
+        val_uncertain (int): Value assigned to uncertain estimates in series
+        val_certain (int): Value assigned to certain estimates in series
+
+    Returns:
+        pd.Series: Series of proxy values
+    """
+    return np.where(
+        (data[estimate_col] % 5 == 0) & (data[estimate_col] != 0),
+        val_uncertain,
+        val_certain,
+    )
 
 
 def create_survey_df(include_inflation: bool = False) -> pd.DataFrame:
@@ -286,7 +336,6 @@ def main() -> None:
     df = create_survey_df()
     df_measures = pivot_inflation_measures(df)
     df_measures = include_inflation_measures(df_measures)
-
     print(df_measures.head())
 
     print("participants included: ", df["participant.label"].nunique())

@@ -14,6 +14,7 @@ from src.process_survey import (
     calculate_estimate_bias,
     calculate_estimate_sensitivity,
     include_inflation_measures,
+    include_uncertainty_measure,
 )
 from src.utils.logging_helpers import set_external_module_log_levels
 
@@ -202,5 +203,16 @@ test_val = df2[
 ]["Quant Expectation"].values[0]
 logger.debug("test val 5 %s", test_val)
 assert test_val < 0
+
+logger.info("Testing uncertainty measure")
+df2["Uncertain Expectation"] = include_uncertainty_measure(
+    df2, "Quant Expectation", 1, 0
+)
+test_val = df2[
+    (df2["participant.code"] == constants.TEST_UNCERTAINTY_MEASURE_PARTICIPANT_CODE)
+    & (df2["Month"] == constants.TEST_UNCERTAINTY_MEASURE_MONTH)
+]["Uncertain Expectation"].values[0]
+assert test_val == constants.TEST_UNCERTAINTY_VALUE
+
 
 logger.info("Test complete")
