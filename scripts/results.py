@@ -267,16 +267,65 @@ create_pearson_correlation_matrix(
 
 ### Comparison to trends from CAMME in real life
 
-# Figure I – Corrélation entre inflation perçue et anticipée (en %) <br><br>
+# %% [markdown]
+#### Figure I – Correlation between perceived and expected inflation (%) <br><br>
+sns.lmplot(
+    df_inf_measures[df_inf_measures["participant.round"] == 1],
+    x="Quant Perception",
+    y="Quant Expectation",
+    hue="participant.round",
+)
 
-# Figure II – Effet d’apprentissage des répondants (en points de pourcentage) <br><br>
+# %% [markdown]
+# ! TBD since CAMME results are not significant (only CES)
+#### Figure II – Effet d’apprentissage des répondants (en points de pourcentage) <br><br>
+# Using formula: $ y_{its} = \sum \limits _{s=1} ^{S}\beta_{s} \tau_{s} +  \alpha_{i} X_{i} +
+# \gamma_{t} + \epsilon_{it}$
 
-# Tableau 3 – Réponses à la question qualitative sur l’anticipation à un an <br><br>
 
-# Figure III – Distribution des perceptions et anticipations d’inflation
-# (en % des répondants) <br><br>
+# %% [markdown]
+#### Tableau 3 – Réponses à la question qualitative sur l’anticipation à un an <br><br>
+df_inf_measures.groupby("inf_phase")[["Qual Expectation"]].value_counts(normalize=True)
 
-# Figure IV – Inflation IPCH et anticipations d’inflation 2020-2021 <br><br>
+
+# %% [markdown]
+#### Figure III – Distribution of perceived and expected inflaiton (% of respondents)
+df = df_inf_measures[df_inf_measures["participant.round"] == 1][
+    ["participant.code", "inf_phase", "month", "Quant Perception", "Quant Expectation"]
+].melt(
+    id_vars=["participant.code", "inf_phase", "month"],
+    value_vars=["Quant Perception", "Quant Expectation"],
+    var_name="Estimate Type",
+    value_name="Estimate",
+)
+
+# %%
+sns.displot(
+    df, x="Estimate", hue="inf_phase", col="Estimate Type", kde=True, common_norm=False
+)
+
+# %% [markdown]
+# Figure IV – Inflation IPCH et anticipations d’inflation 2020-2021
+# * Plot estimates over time
+estimates = ["Quant Expectation", "Actual", "Upcoming"]
+g = sns.relplot(
+    data=df_survey[df_survey["participant.round"] == 1][
+        df_survey["Measure"].isin(estimates)
+    ],
+    x="Month",
+    y="Estimate",
+    errorbar=None,
+    hue="Measure",
+    style="Measure",
+    kind="line",
+)
+
+## Adjust titles
+(
+    g.set_axis_labels("Month", "Inflation rate (%)")
+    # .set_titles("Savings Game round: {col_name}")
+    .tight_layout(w_pad=0.5)
+)
 
 # Figure V – Évolution de l’incertitude des ménages (en %) <br><br>
 
