@@ -163,6 +163,7 @@ df_inf_measures[df_inf_measures["participant.round"] == 1].describe().T
 
 # %% [markdown]
 #### Relationship between expectations, perceptions, and decisions
+# (Difference between quantitative and qualitative estimates)
 df_inf_measures.rename(columns={"Month": "month"}, inplace=True)
 df_inf_measures = df_inf_measures.merge(
     df_measures[[c for c in df_measures.columns if "participant.inflation" not in c]],
@@ -170,7 +171,7 @@ df_inf_measures = df_inf_measures.merge(
 )
 
 # %%
-# Separate inflation measures by high- and low-inflation
+## Separate inflation measures by high- and low-inflation
 df_inf_measures["inf_phase"] = np.where(
     df_inf_measures["inf_phase"] == 1,
     "high",
@@ -199,29 +200,7 @@ df_bias.rename(columns={"participant.code_": "participant.code"}, inplace=True)
 df_inf_measures = df_inf_measures.merge(df_bias, how="left")
 
 # %%
-create_correlation_matrix(
-    df_inf_measures[
-        (df_inf_measures["participant.round"] == 1) & (df_inf_measures["month"] == 120)
-    ][
-        [
-            "Perception_sensitivity",
-            "Perception_bias_low",
-            "Perception_bias_high",
-            "Expectation_sensitivity",
-            "Expectation_bias_low",
-            "Expectation_bias_high",
-            "avg_q",
-            "avg_q_%",
-            "sreal",
-        ]
-    ],
-    p_values=[0.1, 0.05, 0.01],
-)
-
-# %% [markdown]
-##### Difference between quantitative and qualitative estimates
-# %%
-## Determine whether qualitative estimates were accurate
+## Determine qualitative estimates accuracy
 conditions_list = [
     (df_inf_measures["inf_phase"] == "high") & (df_inf_measures["Qual Perception"] > 1),
     (df_inf_measures["inf_phase"] == "low")
@@ -246,7 +225,42 @@ df_inf_measures["Qual Expectation Accuracy"] = np.select(
     conditions_list, [1, 1, np.NaN], default=0
 )
 
-df_inf_measures["Qual Perception Accuracy"].hist()
+df_accuracy = pd.pivot_table(
+    df_inf_measures[
+        ["participant.code", "Qual Perception Accuracy", "Qual Expectation Accuracy"]
+    ],
+    index="participant.code",
+    aggfunc="mean",
+)
+
+df_accuracy.rename(
+    columns={col: f"Avg {col}" for col in df_accuracy.columns}, inplace=True
+)
+
+df_inf_measures = df_inf_measures.merge(df_accuracy.reset_index(), how="left")
+
+# %%
+create_pearson_correlation_matrix(
+    df_inf_measures[
+        (df_inf_measures["participant.round"] == 1) & (df_inf_measures["month"] == 120)
+    ][
+        [
+            "Perception_sensitivity",
+            "Perception_bias_low",
+            "Perception_bias_high",
+            "Expectation_sensitivity",
+            "Expectation_bias_low",
+            "Expectation_bias_high",
+            "Avg Qual Perception Accuracy",
+            "Avg Qual Expectation Accuracy",
+            "avg_q",
+            "avg_q_%",
+            "sreal",
+        ]
+    ],
+    p_values=[0.1, 0.05, 0.01],
+)
+
 
 # %% [markdown]
 ## Real life vs. savings game
