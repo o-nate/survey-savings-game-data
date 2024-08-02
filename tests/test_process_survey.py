@@ -4,6 +4,8 @@ import logging
 import math
 import sys
 
+import numpy as np
+
 from utils import constants
 
 from src.process_survey import (
@@ -24,6 +26,8 @@ logger.addHandler(logging.StreamHandler(sys.stdout))
 
 logger.info("Testing process_survey module")
 data = create_survey_df()
+
+logger.info("Testing results calculated")
 data = data[
     (data["participant.code"] == constants.TEST_CREATE_PARTICIPANT_CODE)
     & (data["Month"] == constants.TEST_CREATE_MONTH)
@@ -143,7 +147,6 @@ logger.info(
             and vice versa)"""
 )
 df2 = pivot_inflation_measures(data)
-df_describe = df2.describe().T
 count_quant_exp = df2["Quant Expectation"].count()
 mean_quant_percp = df2["Quant Perception"].mean()
 logger.debug("exp count: %s, mean percp: %s", count_quant_exp, mean_quant_percp)
@@ -153,5 +156,51 @@ assert math.isclose(
     constants.TEST_CREATE_QUANT_PERCEP_AVG,
     rel_tol=constants.TEST_CALCULATE_SENSITIVITY_EXPECTATION_ERROR_MARGIN,
 )
+
+logger.info(
+    """Testing corrections for mismatched qualitative, quantitative responses
+            (i.e. negative qualitative, positive quantitative)"""
+)
+
+test_val = df2[
+    (
+        df2["participant.code"]
+        == constants.TEST_CREATE_CORRECT_NEG_NEG_PARTICIPANT_CODE_PERC
+    )
+    & (df2["Month"] == constants.TEST_CREATE_CORRECT_NEG_NEG_MONTH_PERC)
+]["Quant Perception"].values[0]
+logger.debug("test val 1 %s", test_val)
+assert test_val < 0
+
+test_val = df2[
+    (
+        df2["participant.code"]
+        == constants.TEST_CREATE_CORRECT_NEG_NEG_PARTICIPANT_CODE_EXP
+    )
+    & (df2["Month"] == constants.TEST_CREATE_CORRECT_NEG_NEG_MONTH_EXP)
+]["Quant Expectation"].values[0]
+logger.debug("test val 2 %s", test_val)
+assert test_val < 0
+
+test_val = df2[
+    (df2["participant.code"] == constants.TEST_CREATE_CORRECT_POS_NEG_PARTICIPANT_CODE)
+    & (df2["Month"] == constants.TEST_CREATE_CORRECT_POS_NEG_MONTH)
+]["Quant Expectation"].values[0]
+logger.debug("test val 3 %s", test_val)
+assert test_val > 0
+
+test_val = df2[
+    (df2["participant.code"] == constants.TEST_CREATE_CORRECT_ZERO_PARTICIPANT_CODE)
+    & (df2["Month"] == constants.TEST_CREATE_CORRECT_ZERO_MONTH)
+]["Quant Perception"].values[0]
+logger.debug("test val 4 %s", test_val)
+assert test_val == 0
+
+test_val = df2[
+    (df2["participant.code"] == constants.TEST_CREATE_CORRECT_NEG_POS_PARTICIPANT_CODE)
+    & (df2["Month"] == constants.TEST_CREATE_CORRECT_NEG_POS_MONTH)
+]["Quant Expectation"].values[0]
+logger.debug("test val 5 %s", test_val)
+assert test_val < 0
 
 logger.info("Test complete")

@@ -9,6 +9,22 @@ TEST_CREATE_VALUES = {
     "Qual Expectation": 3.0,
     "Qual Perception": 2.0,
 }
+## Negative qualitative, negative quantitative
+TEST_CREATE_CORRECT_NEG_NEG_PARTICIPANT_CODE_EXP = "rvq1b1xn"  # Expectation
+TEST_CREATE_CORRECT_NEG_NEG_MONTH_EXP = 48
+TEST_CREATE_CORRECT_NEG_NEG_PARTICIPANT_CODE_PERC = "b18fltit"  # Perception
+TEST_CREATE_CORRECT_NEG_NEG_MONTH_PERC = 84
+## Positive qualitative, negative quantitative
+TEST_CREATE_CORRECT_POS_NEG_PARTICIPANT_CODE = "v5ibqv7b"
+TEST_CREATE_CORRECT_POS_NEG_MONTH = 12
+## Qualitative - no change
+TEST_CREATE_CORRECT_ZERO_PARTICIPANT_CODE = "t3lco71m"  # Perception
+TEST_CREATE_CORRECT_ZERO_MONTH = 72
+## Negative qualitative, positive quantitative
+TEST_CREATE_CORRECT_NEG_POS_PARTICIPANT_CODE = "lgvilqkk"  # Expectation
+TEST_CREATE_CORRECT_NEG_POS_MONTH = 1
+
+
 TEST_CREATE_QUANT_EXP_COUNT = 3110.0
 TEST_CREATE_QUANT_PERCEP_AVG = 15.3698640
 

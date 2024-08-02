@@ -199,33 +199,27 @@ def create_survey_df(include_inflation: bool = False) -> pd.DataFrame:
         df5[quant] = np.where(df5[qual] == 0, 0, df5[quant])
         df5[quant] = np.select(
             [
-                (df5[qual] > 0) & (df5[quant] >= 0),
                 (df5[qual] < 0) & (df5[quant] > 0),
                 (df5[qual] > 0) & (df5[quant] < 0),
-                df5[quant].isna(),
             ],
             [
-                df5[quant],
                 df5[quant] * -1,
                 df5[quant] * -1,
-                df5[quant],
             ],
+            default=df5[quant],
         )
     for qual, quant in zip(qual_expectation_cols, expectation_cols):
         df5[quant] = np.where(df5[qual] == 0, 0, df5[quant])
         df5[quant] = np.select(
             [
-                (df5[qual] > 0) & (df5[quant] >= 0),
                 (df5[qual] < 0) & (df5[quant] > 0),
                 (df5[qual] > 0) & (df5[quant] < 0),
-                df5[quant].isna(),
             ],
             [
-                df5[quant],
                 df5[quant] * -1,
                 df5[quant] * -1,
-                df5[quant],
             ],
+            default=df5[quant],
         )
 
     logger.debug(df5.columns.to_list())
