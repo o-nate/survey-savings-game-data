@@ -33,7 +33,7 @@ def combine_series(dataframes: List[pd.DataFrame], **kwargs) -> pd.DataFrame:
     return reduce(lambda left, right: pd.merge(left, right, **kwargs), dataframes)
 
 
-def create_correlation_matrix(
+def create_pearson_correlation_matrix(
     data: pd.DataFrame,
     p_values: List[float],
     include_stars: bool = True,

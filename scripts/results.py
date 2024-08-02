@@ -15,7 +15,7 @@ from src import calc_opp_costs, discontinuity, process_survey
 
 from src.calc_opp_costs import df_opp_cost
 from src.preprocess import final_df_dict
-from src.utils.helpers import create_correlation_matrix
+from src.utils.helpers import create_pearson_correlation_matrix
 from src.utils.logging_helpers import set_external_module_log_levels
 
 # * Logging settings
