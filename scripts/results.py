@@ -327,8 +327,41 @@ g = sns.relplot(
     .tight_layout(w_pad=0.5)
 )
 
-# Figure V – Évolution de l’incertitude des ménages (en %) <br><br>
+# %%
+# Figure V – Change in estimation uncertainty (% of responses)
+df_inf_measures["Uncertain Expectation"] = process_survey.include_uncertainty_measure(
+    df_inf_measures, "Quant Expectation", 1, 0
+)
+df_uncertain = (
+    pd.pivot_table(
+        df_inf_measures[
+            [
+                "month",
+                "Quant Expectation",
+                "Uncertain Expectation",
+                "Actual",
+            ]
+        ],
+        index="month",
+        aggfunc="mean",
+    )
+    .reset_index()
+    .dropna()
+)
 
+df_uncertain["Uncertain Expectation"] = df_uncertain["Uncertain Expectation"] * 100
+
+sns.lineplot(
+    df_uncertain.melt(
+        id_vars="month",
+        value_vars=["Quant Expectation", "Uncertain Expectation", "Actual"],
+        var_name="Measure",
+        value_name="Value",
+    ),
+    x="month",
+    y="Value",
+    hue="Measure",
+)
 
 # %% [markdown]
 ## The role of individual characteristics and behavior
