@@ -277,13 +277,6 @@ sns.lmplot(
 )
 
 # %% [markdown]
-# ! TBD since CAMME results are not significant (only CES)
-#### Figure II – Effet d’apprentissage des répondants (en points de pourcentage) <br><br>
-# Using formula: $ y_{its} = \sum \limits _{s=1} ^{S}\beta_{s} \tau_{s} +  \alpha_{i} X_{i} +
-# \gamma_{t} + \epsilon_{it}$
-
-
-# %% [markdown]
 #### Tableau 3 – Réponses à la question qualitative sur l’anticipation à un an <br><br>
 df_inf_measures.groupby("inf_phase")[["Qual Expectation"]].value_counts(normalize=True)
 
