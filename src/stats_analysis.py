@@ -1,7 +1,5 @@
 """Statistical analysis of data"""
 
-# %%
-
 import logging
 
 from pathlib import Path
@@ -16,8 +14,8 @@ from sklearn.preprocessing import OneHotEncoder
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 
-from preprocess import final_df_dict
 from calc_opp_costs import df_opp_cost
+from preprocess import final_df_dict
 from discontinuity import purchase_discontinuity
 from process_survey import create_survey_df
 from src.utils.logging_helpers import set_external_module_log_levels
@@ -43,21 +41,16 @@ DECISION_QUANTITY = "cum_decision"
 # * Define purchase window, i.e. how many months before and after inflation phase change to count
 WINDOW = 3
 
-# %%
 
-
-# %%
 def main() -> None:
     """Run script"""
     df_results = df_opp_cost.copy()
     logger.debug(df_results.shape)
 
-    # %%
     df_results = purchase_discontinuity(
         df_results, decision_quantity=DECISION_QUANTITY, window=WINDOW
     )
 
-    # %%
     print(df_results[(df_results["month"] == 120) & (df_results["finalSavings"] == 0)])
     print(
         df_results[df_results["month"] == 120]
