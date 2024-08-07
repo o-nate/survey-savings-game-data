@@ -20,3 +20,10 @@ INFLATION_DICT = {
     + ["Upcoming" for m in range(10)],
     "Estimate": INF_430 + INF_430 + INF_430 + INF_430,  # + INF_1012 + INF_1012[1:],
 }
+
+# * Economic preferences
+CHOICES = {
+    "riskPreferences": "probability",
+    "lossAversion": "loss.",
+    "timePreferences": ".q",
+}

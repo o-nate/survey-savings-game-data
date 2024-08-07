@@ -1,5 +1,12 @@
 """Constants for testing modules"""
 
+# * `econ_preferences`
+LOSS_SWITCHES_PARTICIPANT_CODE = "ub8goyln"
+LOSS_SWITCHES_NUMBER = 3
+RISK_SAFE_PARTICIPANT_CODE = "0thsjvpw"
+RISK_SAFE_NUMBER = 4
+RISK_SWITCHES_NUMBER = 4
+
 # * `process_survey`
 TEST_CREATE_PARTICIPANT_CODE = "17c9d4zc"
 TEST_CREATE_MONTH = 36
