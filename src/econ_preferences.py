@@ -79,17 +79,65 @@ def count_time_preference_switches(data: pd.DataFrame, rounds: int = 2) -> pd.Se
     return _data[[c for c in _data.columns if "count_" in c]].sum(axis=1)
 
 
+def count_wisconsin_correct(data: pd.DataFrame) -> pd.Series:
+    """Produce series of total correct choices per subject
+
+    Args:
+        data (pd.DataFrame): Wisconsin Card Sorting Task data
+
+    Returns:
+        pd.Series: Number of total correct choices per subject
+    """
+    return data["wisconsin.1.player.num_correct"]
+
+
+def count_wisconsin_errors(
+    data: pd.DataFrame, error_type: str, num_trials: int = 30
+) -> pd.Series:
+    """Count number of perseverative or set-loss erros from Wisconsin Card Sorting Task.
+    Perseverative errors are failures to adapt decisions to negative feedback. Set-loss
+    errors are failures to maintain a decision, given positive feedback.
+
+    Args:
+        data (pd.DataFrame): Wisconsin Card Sorting Task data
+        error_type (str): `perseverative` or `set-loss`
+        num_trials (int, optional): Total number of decisions. Defaults to 30.
+
+    Raises:
+        ValueError: When incorrect `error_type` defined.
+
+    Returns:
+        pd.Series: Series of total error for defined `error_type` per subject
+    """
+    _data = data.copy()
+    ## Start at trial 2 since we can only have errors after 1st trial
+    for n in range(2, 1 + num_trials):
+        if error_type == "perseverative":
+            criteria = [
+                _data[f"correct_{n-1}"].eq(False)
+                & (_data[f"guess_{n-1}"] == _data[f"guess_{n}"])
+            ]
+        elif error_type == "set-loss":
+            criteria = [
+                _data[f"correct_{n-1}"].eq(True)
+                & (_data[f"guess_{n-1}"] != _data[f"guess_{n}"])
+            ]
+        else:
+            raise ValueError(
+                "Please, choose either `perseverative` or `set-loss` error type."
+            )
+        choices = [1]
+        if n == 2:
+            _data["n_error"] = np.select(criteria, choices, default=0)
+        else:
+            _data["n_error"] += np.select(criteria, choices, default=0)
+    return _data["n_error"]
+
+
 def main() -> None:
     """Run script"""
-    df = final_df_dict["lossAversion"].copy()
-    df["n_switches"] = count_switches(df, "lossAversion")
-    print(df.head())
-    logger.debug(
-        df[df["participant.code"] == "ub8goyln"][
-            [c for c in df.columns if constants.CHOICES["lossAversion"] in c]
-            + ["n_switches"]
-        ]
-    )
+    df = final_df_dict["wisconsin"].copy()
+    logger.debug(df.shape)
 
 
 if __name__ == "__main__":
