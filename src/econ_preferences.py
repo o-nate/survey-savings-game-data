@@ -29,23 +29,26 @@ def count_preference_choices(data: pd.DataFrame, econ_preference: str) -> pd.Ser
     Args:
         data (pd.DataFrame): Data
         econ_preference (str): Economic preference measure ('lossAversion',
-        'riskAversion', 'timePreference')
+        'riskAversion', 'timePreferences')
 
     Returns:
         pd.Series: Number of choices
     """
     column_selector = constants.CHOICES[econ_preference]
     cols = [c for c in data.columns if column_selector in c]
+    if econ_preference == "timePreferences":
+        return (data[cols] == 1).sum(axis=1)
     return data[cols].sum(axis=1)
 
 
 def count_switches(data: pd.DataFrame, econ_preference: str) -> pd.Series:
-    """Count changes in economic preferences
+    """Count changes in loss aversion and risk preferences (number greater than
+    1 suggest inconsistent preferences)
 
     Args:
         data (pd.DataFrame): Data
         econ_preference (str): Economic preference measure ('lossAversion',
-        'riskAversion', 'timePreference')
+        'riskPreferences')
 
     Returns:
         pd.Series: Number of switches
@@ -53,6 +56,27 @@ def count_switches(data: pd.DataFrame, econ_preference: str) -> pd.Series:
     column_selector = constants.CHOICES[econ_preference]
     cols = [c for c in data.columns if column_selector in c]
     return (data[cols] != data[cols].shift(axis=1)).sum(axis=1) - 1
+
+
+def count_time_preference_switches(data: pd.DataFrame, rounds: int = 2) -> pd.Series:
+    """Count changes in time preferences (number greater than the number or rounds
+    suggest inconsistent preferences)
+
+    Args:
+        data (pd.DataFrame): Time preference data
+        rounds (int, optional): Number of sets of smaller-sooner vs. larger-later choices.
+        Defaults to 2.
+
+    Returns:
+        pd.Series: Total switches per participant over the course of all rounds
+    """
+    _data = data.copy()
+    for r in range(1, 1 + rounds):
+        cols = [c for c in _data.columns if f"timePreferences.{r}.player.q" in c]
+        ## Convert to booleans
+        _data[cols] = np.where(_data[cols] == 1, True, False)
+        _data[f"count_{r}"] = (_data[cols] != _data[cols].shift(axis=1)).sum(axis=1) - 1
+    return _data[[c for c in _data.columns if "count_" in c]].sum(axis=1)
 
 
 def main() -> None:
