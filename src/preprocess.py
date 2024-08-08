@@ -463,7 +463,8 @@ new.columns = ["participant.code"] + [
 ]
 
 # concatenate new columns with df_wisc
-df_wisc = pd.concat([df_wisc, new], axis=1)
+df_wisc = df_wisc.merge(new, how="left")
+logger.debug("df_wisc shape %s", df_wisc.shape)
 
 # remove separated trial number columns
 columns = []
