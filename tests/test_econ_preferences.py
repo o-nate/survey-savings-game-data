@@ -6,8 +6,6 @@ import sys
 from src.econ_preferences import (
     count_preference_choices,
     count_switches,
-    count_time_preference_switches,
-    count_wisconsin_correct,
     count_wisconsin_errors,
 )
 from src.preprocess import final_df_dict
@@ -53,7 +51,7 @@ result = df[df["participant.code"] == constants.TIME_PRESENT_PARTICIPANT_CODE][
 ].values[0]
 logger.debug("tpref result %s", result)
 assert result == constants.TIME_PRESENT_NUMBER
-df["n_switches"] = count_time_preference_switches(df)
+df["n_switches"] = count_switches(df, "timePreferences")
 result = df[df["participant.code"] == constants.TIME_PRESENT_PARTICIPANT_CODE][
     "n_switches"
 ].values[0]
@@ -63,7 +61,7 @@ assert result == constants.TIME_PRESENT_SWITCHES
 
 logger.info("Testing Wisconsin Card Sorting Task")
 df = final_df_dict["wisconsin"].copy()
-df["n_corr"] = count_wisconsin_correct(df)
+df["n_corr"] = count_preference_choices(df, "wisconsin")
 logger.debug(df[["participant.code", "n_corr"]].head())
 result = df[df["participant.code"] == constants.WISC_PARTICIPANT_CODE]["n_corr"].values[
     0

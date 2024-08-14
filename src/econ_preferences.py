@@ -30,6 +30,8 @@ def count_preference_choices(data: pd.DataFrame, econ_preference: str) -> pd.Ser
     Returns:
         pd.Series: Number of choices
     """
+    if econ_preference == "wisconsin":
+        return data["wisconsin.1.player.num_correct"]
     column_selector = constants.CHOICES[econ_preference]
     cols = [c for c in data.columns if column_selector in c]
     if econ_preference == "timePreferences":
@@ -49,42 +51,20 @@ def count_switches(data: pd.DataFrame, econ_preference: str) -> pd.Series:
     Returns:
         pd.Series: Number of switches
     """
+    if econ_preference == "timePreferences":
+        _data = data.copy()
+        for r in range(1, 1 + constants.TIME_PREFERENCES_ROUNDS):
+            cols = [c for c in _data.columns if f"timePreferences.{r}.player.q" in c]
+            ## Convert to booleans
+            _data[cols] = np.where(_data[cols] == 1, True, False)
+            _data[f"count_{r}"] = (_data[cols] != _data[cols].shift(axis=1)).sum(
+                axis=1
+            ) - 1
+        return _data[[c for c in _data.columns if "count_" in c]].sum(axis=1)
+
     column_selector = constants.CHOICES[econ_preference]
     cols = [c for c in data.columns if column_selector in c]
     return (data[cols] != data[cols].shift(axis=1)).sum(axis=1) - 1
-
-
-def count_time_preference_switches(data: pd.DataFrame, rounds: int = 2) -> pd.Series:
-    """Count changes in time preferences (number greater than the number or rounds
-    suggest inconsistent preferences)
-
-    Args:
-        data (pd.DataFrame): Time preference data
-        rounds (int, optional): Number of sets of smaller-sooner vs. larger-later choices.
-        Defaults to 2.
-
-    Returns:
-        pd.Series: Total switches per participant over the course of all rounds
-    """
-    _data = data.copy()
-    for r in range(1, 1 + rounds):
-        cols = [c for c in _data.columns if f"timePreferences.{r}.player.q" in c]
-        ## Convert to booleans
-        _data[cols] = np.where(_data[cols] == 1, True, False)
-        _data[f"count_{r}"] = (_data[cols] != _data[cols].shift(axis=1)).sum(axis=1) - 1
-    return _data[[c for c in _data.columns if "count_" in c]].sum(axis=1)
-
-
-def count_wisconsin_correct(data: pd.DataFrame) -> pd.Series:
-    """Produce series of total correct choices per subject
-
-    Args:
-        data (pd.DataFrame): Wisconsin Card Sorting Task data
-
-    Returns:
-        pd.Series: Number of total correct choices per subject
-    """
-    return data["wisconsin.1.player.num_correct"]
 
 
 def count_wisconsin_errors(
