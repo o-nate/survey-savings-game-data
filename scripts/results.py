@@ -20,7 +20,7 @@ from src import (
 )
 
 from src.preprocess import final_df_dict
-from src.utils.helpers import combine_series, create_pearson_correlation_matrix
+from src.stats_analysis import (
 from src.utils.logging_helpers import set_external_module_log_levels
 
 # * Logging settings

@@ -1,23 +1,25 @@
 """Statistical analysis of data"""
 
 import logging
+from typing import List, Tuple
 
 from pathlib import Path
 import time
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
-from scipy import stats
+from scipy.stats import pearsonr, pointbiserialr, wilcoxon
 import seaborn as sns
 from sklearn.linear_model import LinearRegression
-from sklearn.preprocessing import OneHotEncoder
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
+from statsmodels.stats.multitest import multipletests
 
-from calc_opp_costs import df_opp_cost
-from preprocess import final_df_dict
-from discontinuity import purchase_discontinuity
-from process_survey import create_survey_df
+from src.calc_opp_costs import calculate_opportunity_costs
+from src.utils import constants
+from src.discontinuity import purchase_discontinuity
+from src.preprocess import final_df_dict
 from src.utils.logging_helpers import set_external_module_log_levels
 
 # * Logging settings
@@ -42,9 +44,45 @@ DECISION_QUANTITY = "cum_decision"
 WINDOW = 3
 
 
+def create_pearson_correlation_matrix(
+    data: pd.DataFrame,
+    p_values: List[float],
+    include_stars: bool = True,
+    display: bool = False,
+    decimal_places: int = 2,
+) -> pd.DataFrame:
+    """Calculate pearson correlation and p-values and add asterisks
+    to relevant values in table
+
+    Args:
+        data (pd.DataFrame): Data to correlate
+        p_values (List[float]): p value thresholds for stars
+        include_stars (bool, optional): Include star for p values. Defaults to True.
+        display (bool, optional): Display p values for each correlation. Defaults to False.
+        decimal_places (int, optional): Decimal places to include. Defaults to 2.
+
+    Returns:
+        pd.DataFrame: Correlation matrix using Pearson correlation with p values stars
+    """
+
+    rho = data.corr()
+    pval = data.corr(method=lambda x, y: pearsonr(x, y)[1]) - np.eye(*rho.shape)
+    cols = data.columns.to_list()
+    if display:
+        print(f"P-values benchmarks: {p_values}")
+        for c in cols:
+            print(c)
+            print(f"{c} p-values: \n{pval[c]}")
+    if include_stars:
+        p = pval.applymap(lambda x: "".join(["*" for t in p_values if x <= t]))
+        return rho.round(decimal_places).astype(str) + p
+    return rho.round(decimal_places)
+
+
+
 def main() -> None:
     """Run script"""
-    df_results = df_opp_cost.copy()
+    df_results = calculate_opportunity_costs()
     logger.debug(df_results.shape)
 
     df_results = purchase_discontinuity(
@@ -80,7 +118,7 @@ def main() -> None:
     df_inf = df_inf.apply(pd.to_numeric, errors="ignore")
     logger.debug(df_inf.dtypes)
 
-    df_stock = df_opp_cost.copy()
+    df_stock = calculate_opportunity_costs()
     df_stock = df_stock.merge(
         df_inf[["participant.code", "participant.label", "month", "estimate"]],
         how="left",
@@ -163,9 +201,7 @@ def main() -> None:
     for c in cols:
         before = data[data["phase"] == "pre"][c]
         after = data[data["phase"] == "post"][c]
-        p_value = stats.wilcoxon(
-            before, after, zero_method="zsplit", nan_policy="raise"
-        )[1]
+        p_value = wilcoxon(before, after, zero_method="zsplit", nan_policy="raise")[1]
         print(f"p value for {c}: {p_value}")
 
     graph_data = input("Plot data? (y/n):")
