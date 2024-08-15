@@ -28,3 +28,19 @@ CHOICES = {
     "timePreferences": ".q",
 }
 TIME_PREFERENCES_ROUNDS = 2
+
+# * Knowledge
+QUESTIONS = {
+    "financial_literacy": {
+        "Finance.1.player.finK_1": 1,
+        "Finance.1.player.finK_2": -1,
+        "Finance.1.player.finK_9": 1,
+    },
+    "numeracy": {"Numeracy.1.player.num_2b": 20, "Numeracy.1.player.num_3": 30},
+    "compound": {
+        "Inflation.1.player.infCI_1": 1100,
+        "Inflation.1.player.infCI_2": 2,
+        "Inflation.1.player.infCI_3": 2,
+        "Inflation.1.player.infCI_4": 32000,
+    },
+}
