@@ -21,6 +21,10 @@ from src import (
 
 from src.preprocess import final_df_dict
 from src.stats_analysis import (
+    create_bonferroni_correlation_table,
+    create_pearson_correlation_matrix,
+)
+from src.utils.helpers import combine_series
 from src.utils.logging_helpers import set_external_module_log_levels
 
 # * Logging settings
@@ -38,6 +42,34 @@ DECISION_QUANTITY = "cum_decision"
 
 # * Define purchase window, i.e. how many months before and after inflation phase change to count
 WINDOW = 3
+
+P_VALUES_THRESHOLDS = [0.1, 0.05, 0.01]
+DECIMAL_PLACES = 15
+
+PERFORMANCE_MEASURES = ["sreal", "early", "excess", "avg_q_%"]
+QUANT_INFLATION_MEASURES = [
+    "Perception_sensitivity",
+    "avg_perception_bias",
+    "Expectation_sensitivity",
+    "avg_expectation_bias",
+]
+QUAL_INFLATION_MEASURES = [
+    "Avg Qual Expectation Accuracy",
+    "Avg Qual Perception Accuracy",
+    "Average Uncertain Expectation",
+]
+KNOWLEDGE_MEASURES = ["financial_literacy", "numeracy", "compound"]
+ECON_PREFERENCE_MEASURES = [
+    "lossAversion_choice_count",
+    "lossAversion_switches",
+    "riskPreferences_choice_count",
+    "riskPreferences_switches",
+    "timePreferences_choice_count",
+    "timePreferences_switches",
+    "wisconsin_choice_count",
+    "wisconsin_PE",
+    "wisconsin_SE",
+]
 
 # %% [markdown]
 ## Descriptive statistics: Subjects
@@ -264,7 +296,7 @@ create_pearson_correlation_matrix(
             "sreal",
         ]
     ],
-    p_values=[0.1, 0.05, 0.01],
+    p_values=P_VALUES_THRESHOLDS,
 )
 
 
@@ -386,50 +418,46 @@ df_econ_preferences.describe().T
 
 # %% [markdown]
 ### Correlations between knowledge and performance measures
-# TODO Bonferroni
 create_pearson_correlation_matrix(
     df_individual_char[
         (df_individual_char["participant.round"] == 1)
         & (df_individual_char["month"] == 120)
-    ][
-        [
-            "financial_literacy",
-            "numeracy",
-            "compound",
-            "early",
-            "excess",
-            "sreal",
-            "avg_q",
-            "avg_q_%",
-        ]
-    ],
-    p_values=[0.1, 0.05, 0.01],
+    ][KNOWLEDGE_MEASURES + PERFORMANCE_MEASURES],
+    p_values=P_VALUES_THRESHOLDS,
+)
+
+# %%
+# * Bonferroni correction
+create_bonferroni_correlation_table(
+    df_individual_char,
+    KNOWLEDGE_MEASURES,
+    PERFORMANCE_MEASURES,
+    "pointbiserial",
+    decimal_places=DECIMAL_PLACES,
 )
 
 # %% [markdown]
 ### Correlations between inconsistencies in economic preferences and performance measures
-# TODO Bonferroni
-econ_pref_cols = [c for c in df_econ_preferences.columns if "label" not in c]
 create_pearson_correlation_matrix(
     df_individual_char[
         (df_individual_char["participant.round"] == 1)
         & (df_individual_char["month"] == 120)
-    ][
-        econ_pref_cols
-        + [
-            "early",
-            "excess",
-            "sreal",
-            "avg_q",
-            "avg_q_%",
-        ]
-    ],
-    p_values=[0.1, 0.05, 0.01],
+    ][ECON_PREFERENCE_MEASURES + PERFORMANCE_MEASURES],
+    p_values=P_VALUES_THRESHOLDS,
+)
+
+# %%
+# * Bonferroni correction
+create_bonferroni_correlation_table(
+    df_individual_char,
+    ECON_PREFERENCE_MEASURES,
+    PERFORMANCE_MEASURES,
+    "pearson",
+    decimal_places=DECIMAL_PLACES,
 )
 
 # %% [markdown]
 ### Correlations between knowledge and inflation bias and sensitivity measures
-# TODO Bonferroni
 
 ## Set mean perception and expectation biases
 df_individual_char["avg_perception_bias"] = df_individual_char.groupby(
@@ -443,77 +471,79 @@ create_pearson_correlation_matrix(
     df_individual_char[
         (df_individual_char["participant.round"] == 1)
         & (df_individual_char["month"] == 120)
-    ][
-        [
-            "financial_literacy",
-            "numeracy",
-            "compound",
-            "Perception_sensitivity",
-            "avg_perception_bias",
-            "Expectation_sensitivity",
-            "avg_expectation_bias",
-        ]
-    ],
-    p_values=[0.1, 0.05, 0.01],
+    ][KNOWLEDGE_MEASURES + QUANT_INFLATION_MEASURES],
+    p_values=P_VALUES_THRESHOLDS,
+)
+
+# %%
+# * Bonferroni correction
+create_bonferroni_correlation_table(
+    df_individual_char,
+    KNOWLEDGE_MEASURES,
+    QUANT_INFLATION_MEASURES,
+    "pointbiserial",
+    decimal_places=DECIMAL_PLACES,
 )
 
 # %% [markdown]
 ### Correlations between inconsistency and inflation bias and sensitivity measures
-# TODO Bonferroni
-econ_pref_cols = [c for c in df_econ_preferences.columns if "label" not in c]
 create_pearson_correlation_matrix(
     df_individual_char[
         (df_individual_char["participant.round"] == 1)
         & (df_individual_char["month"] == 120)
-    ][
-        econ_pref_cols
-        + [
-            "Perception_sensitivity",
-            "avg_perception_bias",
-            "Expectation_sensitivity",
-            "avg_expectation_bias",
-        ]
-    ],
-    p_values=[0.1, 0.05, 0.01],
+    ][ECON_PREFERENCE_MEASURES + QUANT_INFLATION_MEASURES],
+    p_values=P_VALUES_THRESHOLDS,
+)
+
+# %%
+# * Bonferroni correction
+create_bonferroni_correlation_table(
+    df_individual_char,
+    ECON_PREFERENCE_MEASURES,
+    QUANT_INFLATION_MEASURES,
+    "pearson",
+    decimal_places=DECIMAL_PLACES,
 )
 
 # %% [markdown]
 ### Correlations between knowledge and inflation qualitative inflation measures
-# TODO Bonferroni
 create_pearson_correlation_matrix(
     df_individual_char[
         (df_individual_char["participant.round"] == 1)
         & (df_individual_char["month"] == 120)
-    ][
-        [
-            "financial_literacy",
-            "numeracy",
-            "compound",
-            "Avg Qual Expectation Accuracy",
-            "Avg Qual Perception Accuracy",
-            "Average Uncertain Expectation",
-        ]
-    ],
-    p_values=[0.1, 0.05, 0.01],
+    ][KNOWLEDGE_MEASURES + QUAL_INFLATION_MEASURES],
+    p_values=P_VALUES_THRESHOLDS,
+)
+
+# %%
+# * Bonferroni correction
+create_bonferroni_correlation_table(
+    df_individual_char,
+    KNOWLEDGE_MEASURES,
+    QUAL_INFLATION_MEASURES,
+    "pointbiserial",
+    decimal_places=DECIMAL_PLACES,
 )
 
 # %% [markdown]
 ### Correlations between knowledge and inflation qualitative inflation measures
-# TODO Bonferroni
-econ_pref_cols = [c for c in df_econ_preferences.columns if "label" not in c]
 create_pearson_correlation_matrix(
     df_individual_char[
         (df_individual_char["participant.round"] == 1)
         & (df_individual_char["month"] == 120)
-    ][
-        econ_pref_cols
-        + [
-            "Avg Qual Expectation Accuracy",
-            "Avg Qual Perception Accuracy",
-            "Average Uncertain Expectation",
-        ]
-    ],
-    p_values=[0.1, 0.05, 0.01],
+    ][ECON_PREFERENCE_MEASURES + QUAL_INFLATION_MEASURES],
+    p_values=P_VALUES_THRESHOLDS,
+)
+
+# %%
+# * Bonferroni correction
+create_bonferroni_correlation_table(
+    df_individual_char,
+    ECON_PREFERENCE_MEASURES,
+    QUAL_INFLATION_MEASURES,
+    "pearson",
+    decimal_places=DECIMAL_PLACES,
+    filtered_results=False,
 )
 
 

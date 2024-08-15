@@ -44,3 +44,6 @@ QUESTIONS = {
         "Inflation.1.player.infCI_4": 32000,
     },
 }
+
+# * Stats analysis
+BONFERRONI_ALPHA = 0.05

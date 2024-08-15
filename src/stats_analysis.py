@@ -79,6 +79,79 @@ def create_pearson_correlation_matrix(
     return rho.round(decimal_places)
 
 
+def create_bonferroni_correlation_table(
+    data: pd.DataFrame,
+    measures_1: List[str],
+    measures_2: List[str],
+    correlation: str,
+    decimal_places: int = 4,
+    filtered_results: bool = True,
+) -> Tuple[pd.DataFrame, List[float]]:
+    """Create table with Bonferroni-corrected correlations
+
+    Args:
+        data (pd.DataFrame): DataFrame with each subjects' individual characteristic
+        and task measures
+        measures_1 (List[str]): first list of measures to correlate
+        measures_2 (List[str]): second list of measures to correlate
+        correlation (str): test to apply (pearson, pointbiserial)
+        decimal_places (int): decimal places to round to. Defaults to 4
+        filtered_results (bool): toggle whether to return only results that pass
+        Bonferroni correction or all results. Defaults to True.
+
+    Raises:
+        ValueError: Raised to indicate a selection of either `pearson` or `pointbiserial`
+        is required.
+
+    Returns:
+        Tuple[pd.DataFrame, List[float]]: Tuple of DataFrame with correlation and p-values
+        and list of raw p values
+    """
+    raw_pvals = []
+    if correlation == "pearson":
+        test = "Pearson correlation"
+    elif correlation == "pointbiserial":
+        test = "Point bi-serial"
+    else:
+        raise ValueError("""Please, indicate either `pearson` or `pointbiserial`.""")
+    print(f"Applying {test}")
+    corr_dict = {"measure": [], "task_measure": [], "correlation": [], "p_value": []}
+
+    ## Create df with correlations to then apply a Bonferroni correction
+    for m1 in measures_1:
+        for m2 in measures_2:
+            if correlation == "pearson":
+                ## Pearson correlation for each measure test
+                corr = pearsonr(data[m1], data[m2])
+            else:
+                ## Point bi-serial correlation for each measure test
+                corr = pointbiserialr(data[m1], data[m2])
+            corr_dict["measure"].append(m1)
+            corr_dict["task_measure"].append(m2)
+            corr_dict["correlation"].append(corr[0])
+            corr_dict["p_value"].append(corr[1])
+            raw_pvals.append(corr[1])
+
+    df_corr = pd.DataFrame(corr_dict)
+
+    ## Bonferroni correction
+    rejected, _, _, alpha_corrected = multipletests(
+        raw_pvals,
+        alpha=constants.BONFERRONI_ALPHA,
+        method="bonferroni",
+        is_sorted=False,
+        returnsorted=False,
+    )
+    print(
+        f"Reject null hypothesis for {np.sum(rejected)} of {len(df_corr)} tests.\t",
+        f"Corrected alpha: {alpha_corrected}",
+    )
+
+    pd.set_option("display.float_format", lambda x: f"%.{decimal_places}f" % x)
+    if filtered_results:
+        return df_corr[df_corr["p_value"] < alpha_corrected]
+    return df_corr
+
 
 def main() -> None:
     """Run script"""
