@@ -8,6 +8,7 @@ import pandas as pd
 
 from src.preprocess import final_df_dict
 from src.utils import constants
+from src.utils import helpers
 from src.utils.logging_helpers import set_external_module_log_levels
 
 # * Logging settings
@@ -110,9 +111,47 @@ def count_wisconsin_errors(
     return _data["n_error"]
 
 
+def create_econ_preferences_dataframe() -> pd.DataFrame:
+    """Generate DataFrame with economic preference ("lossAversion",
+    "riskPreferences", "timePreferences", "wisconsin") measures for each subject
+
+    Returns:
+        pd.DataFrame: DataFrame with columns [participant.label,
+        "lossAversion_choice_count", "riskPreferences_choice_count",
+        "timePreferences_choice_count", "wisconsin_choice_count",
+        "lossAversion_switches", "riskPreferences_switches",
+        "timePreferences_switches", "wisconsin_PE", "wisconsin_SE"]
+    """
+    dataframes = []
+    for pref in ["lossAversion", "riskPreferences", "timePreferences", "wisconsin"]:
+        _df = final_df_dict[pref].copy()
+        _df[f"{pref}_choice_count"] = count_preference_choices(_df, pref)
+        if pref != "wisconsin":
+            _df[f"{pref}_switches"] = count_switches(_df, pref)
+            dataframes.append(
+                _df[["participant.label", f"{pref}_choice_count", f"{pref}_switches"]]
+            )
+        else:
+            _df["wisconsin_PE"] = count_wisconsin_errors(_df, "perseverative")
+            _df["wisconsin_SE"] = count_wisconsin_errors(_df, "set-loss")
+            dataframes.append(
+                _df[
+                    [
+                        "participant.label",
+                        f"{pref}_choice_count",
+                        "wisconsin_PE",
+                        "wisconsin_SE",
+                    ]
+                ]
+            )
+    return helpers.combine_series(
+        dataframes=dataframes, how="left", on="participant.label"
+    )
+
+
 def main() -> None:
     """Run script"""
-    df = final_df_dict["wisconsin"].copy()
+    df = create_econ_preferences_dataframe()
     logger.debug(df.shape)
 
 

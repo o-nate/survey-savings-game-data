@@ -27,3 +27,4 @@ CHOICES = {
     "lossAversion": "loss.",
     "timePreferences": ".q",
 }
+TIME_PREFERENCES_ROUNDS = 2

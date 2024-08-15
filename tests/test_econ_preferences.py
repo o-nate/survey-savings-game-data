@@ -7,6 +7,7 @@ from src.econ_preferences import (
     count_preference_choices,
     count_switches,
     count_wisconsin_errors,
+    create_econ_preferences_dataframe,
 )
 from src.preprocess import final_df_dict
 from src.utils.logging_helpers import set_external_module_log_levels
@@ -79,9 +80,11 @@ result = df[df["participant.code"] == constants.WISC_PARTICIPANT_CODE]["n_SE"].v
 logger.debug("wisc result se %s", result)
 assert result == constants.WISC_N_SE
 
-# df["n_SE"] = count_wisconsin_perseverative_errors(df)
-# result = df[df["participant.code"] == constants.WISC_PARTICIPANT_CODE]["n_SE"].values[0]
-# logger.debug("tpref result switches %s", result)
-# assert result == constants.WISC_N_SE
+logger.info("Testing creat dataframe")
+df_econ_preferences = create_econ_preferences_dataframe()
+result = df_econ_preferences.shape
+logger.debug("Shape %s", result)
+assert result == constants.DATAFRAME_SHAPE
+
 
 logger.info("Tests complete")
