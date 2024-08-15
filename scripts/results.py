@@ -11,11 +11,16 @@ import pandas as pd
 
 # import seaborn as sns
 
-from src import calc_opp_costs, discontinuity, process_survey
+from src import (
+    calc_opp_costs,
+    discontinuity,
+    econ_preferences,
+    knowledge,
+    process_survey,
+)
 
-from src.calc_opp_costs import df_opp_cost
 from src.preprocess import final_df_dict
-from src.utils.helpers import create_pearson_correlation_matrix
+from src.utils.helpers import combine_series, create_pearson_correlation_matrix
 from src.utils.logging_helpers import set_external_module_log_levels
 
 # * Logging settings
@@ -70,6 +75,7 @@ df_questionnaire[
 
 # %% [markdown]
 ## Overall performance
+df_opp_cost = calc_opp_costs.calculate_opportunity_costs()
 calc_opp_costs.plot_savings_and_stock(df_opp_cost, col="phase", palette="tab10")
 
 
@@ -325,6 +331,9 @@ g = sns.relplot(
 df_inf_measures["Uncertain Expectation"] = process_survey.include_uncertainty_measure(
     df_inf_measures, "Quant Expectation", 1, 0
 )
+df_inf_measures["Average Uncertain Expectation"] = df_inf_measures.groupby(
+    "participant.code"
+)["Uncertain Expectation"].transform("mean")
 df_uncertain = (
     pd.pivot_table(
         df_inf_measures[
@@ -358,6 +367,155 @@ sns.lineplot(
 
 # %% [markdown]
 ## The role of individual characteristics and behavior
+
+df_knowledge = knowledge.create_knowledge_dataframe()
+df_econ_preferences = econ_preferences.create_econ_preferences_dataframe()
+df_individual_char = combine_series(
+    [df_inf_measures, df_knowledge, df_econ_preferences],
+    how="left",
+    on="participant.label",
+)
+
+# %% [markdown]
+### Results of knowledge tasks
+df_knowledge.describe().T
+
+# %% [markdown]
+### Results of economic preference tasks
+df_econ_preferences.describe().T
+
+# %% [markdown]
+### Correlations between knowledge and performance measures
+# TODO Bonferroni
+create_pearson_correlation_matrix(
+    df_individual_char[
+        (df_individual_char["participant.round"] == 1)
+        & (df_individual_char["month"] == 120)
+    ][
+        [
+            "financial_literacy",
+            "numeracy",
+            "compound",
+            "early",
+            "excess",
+            "sreal",
+            "avg_q",
+            "avg_q_%",
+        ]
+    ],
+    p_values=[0.1, 0.05, 0.01],
+)
+
+# %% [markdown]
+### Correlations between inconsistencies in economic preferences and performance measures
+# TODO Bonferroni
+econ_pref_cols = [c for c in df_econ_preferences.columns if "label" not in c]
+create_pearson_correlation_matrix(
+    df_individual_char[
+        (df_individual_char["participant.round"] == 1)
+        & (df_individual_char["month"] == 120)
+    ][
+        econ_pref_cols
+        + [
+            "early",
+            "excess",
+            "sreal",
+            "avg_q",
+            "avg_q_%",
+        ]
+    ],
+    p_values=[0.1, 0.05, 0.01],
+)
+
+# %% [markdown]
+### Correlations between knowledge and inflation bias and sensitivity measures
+# TODO Bonferroni
+
+## Set mean perception and expectation biases
+df_individual_char["avg_perception_bias"] = df_individual_char.groupby(
+    "participant.code"
+)["Perception_bias"].transform("mean")
+df_individual_char["avg_expectation_bias"] = df_individual_char.groupby(
+    "participant.code"
+)["Expectation_bias"].transform("mean")
+
+create_pearson_correlation_matrix(
+    df_individual_char[
+        (df_individual_char["participant.round"] == 1)
+        & (df_individual_char["month"] == 120)
+    ][
+        [
+            "financial_literacy",
+            "numeracy",
+            "compound",
+            "Perception_sensitivity",
+            "avg_perception_bias",
+            "Expectation_sensitivity",
+            "avg_expectation_bias",
+        ]
+    ],
+    p_values=[0.1, 0.05, 0.01],
+)
+
+# %% [markdown]
+### Correlations between inconsistency and inflation bias and sensitivity measures
+# TODO Bonferroni
+econ_pref_cols = [c for c in df_econ_preferences.columns if "label" not in c]
+create_pearson_correlation_matrix(
+    df_individual_char[
+        (df_individual_char["participant.round"] == 1)
+        & (df_individual_char["month"] == 120)
+    ][
+        econ_pref_cols
+        + [
+            "Perception_sensitivity",
+            "avg_perception_bias",
+            "Expectation_sensitivity",
+            "avg_expectation_bias",
+        ]
+    ],
+    p_values=[0.1, 0.05, 0.01],
+)
+
+# %% [markdown]
+### Correlations between knowledge and inflation qualitative inflation measures
+# TODO Bonferroni
+create_pearson_correlation_matrix(
+    df_individual_char[
+        (df_individual_char["participant.round"] == 1)
+        & (df_individual_char["month"] == 120)
+    ][
+        [
+            "financial_literacy",
+            "numeracy",
+            "compound",
+            "Avg Qual Expectation Accuracy",
+            "Avg Qual Perception Accuracy",
+            "Average Uncertain Expectation",
+        ]
+    ],
+    p_values=[0.1, 0.05, 0.01],
+)
+
+# %% [markdown]
+### Correlations between knowledge and inflation qualitative inflation measures
+# TODO Bonferroni
+econ_pref_cols = [c for c in df_econ_preferences.columns if "label" not in c]
+create_pearson_correlation_matrix(
+    df_individual_char[
+        (df_individual_char["participant.round"] == 1)
+        & (df_individual_char["month"] == 120)
+    ][
+        econ_pref_cols
+        + [
+            "Avg Qual Expectation Accuracy",
+            "Avg Qual Perception Accuracy",
+            "Average Uncertain Expectation",
+        ]
+    ],
+    p_values=[0.1, 0.05, 0.01],
+)
+
 
 # %% [markdown]
 ## Efficacy of interventions
