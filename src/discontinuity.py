@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-from src.calc_opp_costs import df_opp_cost
+from src.calc_opp_costs import calculate_opportunity_costs
 from src.utils.logging_helpers import set_external_module_log_levels
 
 # * Logging settings
