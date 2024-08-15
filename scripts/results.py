@@ -9,7 +9,7 @@ import numpy as np
 import seaborn as sns
 import pandas as pd
 
-# import seaborn as sns
+from scripts.utils import constants
 
 from src import (
     calc_opp_costs,
@@ -36,40 +36,6 @@ logger.addHandler(logging.StreamHandler(sys.stdout))
 # * Pandas settings
 pd.options.display.max_columns = None
 pd.options.display.max_rows = None
-
-# * Define `decision quantity` measure
-DECISION_QUANTITY = "cum_decision"
-
-# * Define purchase window, i.e. how many months before and after inflation phase change to count
-WINDOW = 3
-
-P_VALUES_THRESHOLDS = [0.1, 0.05, 0.01]
-DECIMAL_PLACES = 15
-
-PERFORMANCE_MEASURES = ["sreal", "early", "excess", "avg_q_%"]
-QUANT_INFLATION_MEASURES = [
-    "Perception_sensitivity",
-    "avg_perception_bias",
-    "Expectation_sensitivity",
-    "avg_expectation_bias",
-]
-QUAL_INFLATION_MEASURES = [
-    "Avg Qual Expectation Accuracy",
-    "Avg Qual Perception Accuracy",
-    "Average Uncertain Expectation",
-]
-KNOWLEDGE_MEASURES = ["financial_literacy", "numeracy", "compound"]
-ECON_PREFERENCE_MEASURES = [
-    "lossAversion_choice_count",
-    "lossAversion_switches",
-    "riskPreferences_choice_count",
-    "riskPreferences_switches",
-    "timePreferences_choice_count",
-    "timePreferences_switches",
-    "wisconsin_choice_count",
-    "wisconsin_PE",
-    "wisconsin_SE",
-]
 
 # %% [markdown]
 ## Descriptive statistics: Subjects
@@ -117,7 +83,7 @@ calc_opp_costs.plot_savings_and_stock(df_opp_cost, col="phase", palette="tab10")
 # %% [markdown]
 ## Performance measures: Over-, under-, and wasteful-stocking and purchase adaptation
 df_measures = discontinuity.purchase_discontinuity(
-    df_opp_cost, DECISION_QUANTITY, WINDOW
+    df_opp_cost, constants.DECISION_QUANTITY, constants.WINDOW
 )
 
 ## Set avg_q and avg_q_% as month=33 value
@@ -296,7 +262,7 @@ create_pearson_correlation_matrix(
             "sreal",
         ]
     ],
-    p_values=P_VALUES_THRESHOLDS,
+    p_values=constants.P_VALUES_THRESHOLDS,
 )
 
 
@@ -422,18 +388,18 @@ create_pearson_correlation_matrix(
     df_individual_char[
         (df_individual_char["participant.round"] == 1)
         & (df_individual_char["month"] == 120)
-    ][KNOWLEDGE_MEASURES + PERFORMANCE_MEASURES],
-    p_values=P_VALUES_THRESHOLDS,
+    ][constants.KNOWLEDGE_MEASURES + constants.PERFORMANCE_MEASURES],
+    p_values=constants.P_VALUES_THRESHOLDS,
 )
 
 # %%
 # * Bonferroni correction
 create_bonferroni_correlation_table(
     df_individual_char,
-    KNOWLEDGE_MEASURES,
-    PERFORMANCE_MEASURES,
+    constants.KNOWLEDGE_MEASURES,
+    constants.PERFORMANCE_MEASURES,
     "pointbiserial",
-    decimal_places=DECIMAL_PLACES,
+    decimal_places=constants.DECIMAL_PLACES,
 )
 
 # %% [markdown]
@@ -442,18 +408,18 @@ create_pearson_correlation_matrix(
     df_individual_char[
         (df_individual_char["participant.round"] == 1)
         & (df_individual_char["month"] == 120)
-    ][ECON_PREFERENCE_MEASURES + PERFORMANCE_MEASURES],
-    p_values=P_VALUES_THRESHOLDS,
+    ][constants.ECON_PREFERENCE_MEASURES + constants.PERFORMANCE_MEASURES],
+    p_values=constants.P_VALUES_THRESHOLDS,
 )
 
 # %%
 # * Bonferroni correction
 create_bonferroni_correlation_table(
     df_individual_char,
-    ECON_PREFERENCE_MEASURES,
-    PERFORMANCE_MEASURES,
+    constants.ECON_PREFERENCE_MEASURES,
+    constants.PERFORMANCE_MEASURES,
     "pearson",
-    decimal_places=DECIMAL_PLACES,
+    decimal_places=constants.DECIMAL_PLACES,
 )
 
 # %% [markdown]
@@ -471,18 +437,18 @@ create_pearson_correlation_matrix(
     df_individual_char[
         (df_individual_char["participant.round"] == 1)
         & (df_individual_char["month"] == 120)
-    ][KNOWLEDGE_MEASURES + QUANT_INFLATION_MEASURES],
-    p_values=P_VALUES_THRESHOLDS,
+    ][constants.KNOWLEDGE_MEASURES + constants.QUANT_INFLATION_MEASURES],
+    p_values=constants.P_VALUES_THRESHOLDS,
 )
 
 # %%
 # * Bonferroni correction
 create_bonferroni_correlation_table(
     df_individual_char,
-    KNOWLEDGE_MEASURES,
-    QUANT_INFLATION_MEASURES,
+    constants.KNOWLEDGE_MEASURES,
+    constants.QUANT_INFLATION_MEASURES,
     "pointbiserial",
-    decimal_places=DECIMAL_PLACES,
+    decimal_places=constants.DECIMAL_PLACES,
 )
 
 # %% [markdown]
@@ -491,18 +457,18 @@ create_pearson_correlation_matrix(
     df_individual_char[
         (df_individual_char["participant.round"] == 1)
         & (df_individual_char["month"] == 120)
-    ][ECON_PREFERENCE_MEASURES + QUANT_INFLATION_MEASURES],
-    p_values=P_VALUES_THRESHOLDS,
+    ][constants.ECON_PREFERENCE_MEASURES + constants.QUANT_INFLATION_MEASURES],
+    p_values=constants.P_VALUES_THRESHOLDS,
 )
 
 # %%
 # * Bonferroni correction
 create_bonferroni_correlation_table(
     df_individual_char,
-    ECON_PREFERENCE_MEASURES,
-    QUANT_INFLATION_MEASURES,
+    constants.ECON_PREFERENCE_MEASURES,
+    constants.QUANT_INFLATION_MEASURES,
     "pearson",
-    decimal_places=DECIMAL_PLACES,
+    decimal_places=constants.DECIMAL_PLACES,
 )
 
 # %% [markdown]
@@ -511,18 +477,18 @@ create_pearson_correlation_matrix(
     df_individual_char[
         (df_individual_char["participant.round"] == 1)
         & (df_individual_char["month"] == 120)
-    ][KNOWLEDGE_MEASURES + QUAL_INFLATION_MEASURES],
-    p_values=P_VALUES_THRESHOLDS,
+    ][constants.KNOWLEDGE_MEASURES + constants.QUAL_INFLATION_MEASURES],
+    p_values=constants.P_VALUES_THRESHOLDS,
 )
 
 # %%
 # * Bonferroni correction
 create_bonferroni_correlation_table(
     df_individual_char,
-    KNOWLEDGE_MEASURES,
-    QUAL_INFLATION_MEASURES,
+    constants.KNOWLEDGE_MEASURES,
+    constants.QUAL_INFLATION_MEASURES,
     "pointbiserial",
-    decimal_places=DECIMAL_PLACES,
+    decimal_places=constants.DECIMAL_PLACES,
 )
 
 # %% [markdown]
@@ -531,18 +497,18 @@ create_pearson_correlation_matrix(
     df_individual_char[
         (df_individual_char["participant.round"] == 1)
         & (df_individual_char["month"] == 120)
-    ][ECON_PREFERENCE_MEASURES + QUAL_INFLATION_MEASURES],
-    p_values=P_VALUES_THRESHOLDS,
+    ][constants.ECON_PREFERENCE_MEASURES + constants.QUAL_INFLATION_MEASURES],
+    p_values=constants.P_VALUES_THRESHOLDS,
 )
 
 # %%
 # * Bonferroni correction
 create_bonferroni_correlation_table(
     df_individual_char,
-    ECON_PREFERENCE_MEASURES,
-    QUAL_INFLATION_MEASURES,
+    constants.ECON_PREFERENCE_MEASURES,
+    constants.QUAL_INFLATION_MEASURES,
     "pearson",
-    decimal_places=DECIMAL_PLACES,
+    decimal_places=constants.DECIMAL_PLACES,
     filtered_results=False,
 )
 
