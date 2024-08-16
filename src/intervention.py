@@ -2,17 +2,16 @@
 
 import logging
 import sys
-from typing import Dict, List
+from typing import List, Tuple
 
-from datetime import datetime
 import matplotlib.pyplot as plt
 import pandas as pd
 from scipy import stats
 import seaborn as sns
 
-from calc_opp_costs import df_opp_cost
-from discontinuity import purchase_discontinuity
-from preprocess import final_df_dict
+from src.calc_opp_costs import calculate_opportunity_costs
+from src.discontinuity import purchase_discontinuity
+from src.preprocess import final_df_dict
 from src.utils.logging_helpers import set_external_module_log_levels
 
 # * Logging settings
@@ -28,24 +27,24 @@ DECISION_QUANTITY = "cum_decision"
 # * Define purchase window, i.e. how many months before and after inflation phase change to count
 WINDOW = 3
 
+"""Print comparison of performance before and after intervention with p values"""
 
-def measure_intervention_impact(
-    data: pd.DataFrame, measures_impacted: List[str]
-) -> None:
-    """Print comparison of performance before and after intervention with p values"""
-    for m in measures_impacted:
-        before = data[(data["phase"] == "pre")][m]
-        after = data[(data["phase"] == "post")][m]
-        p_value = stats.wilcoxon(
-            before, after, zero_method="zsplit", nan_policy="raise"
-        )[1]
-        print(f"Initial {m}: {before.mean()}")
-        print(f"Final {m}: {after.mean()}")
+
+def calculate_change_in_measure(
+    data: pd.DataFrame, measure_impacted: str, display_results: bool = False
+) -> Tuple[float, float, float]:
+    before = data[(data["phase"] == "pre")][measure_impacted]
+    after = data[(data["phase"] == "post")][measure_impacted]
+    p_value = stats.wilcoxon(before, after, zero_method="zsplit", nan_policy="raise")[1]
+    if display_results:
+        print(f"Initial {measure_impacted}: {before.mean()}")
+        print(f"Final {measure_impacted}: {after.mean()}")
         print(
-            f"Change in {m}:",
+            f"Change in {measure_impacted}:",
             after.mean() - before.mean(),
         )
-        print(f"p value for change in {m}:\t{p_value}")
+        print(f"p value for change in {measure_impacted}:\t{p_value}")
+    return before.mean(), after.mean(), p_value
 
 
 def measure_feedback_impact(
@@ -100,7 +99,7 @@ def main() -> None:
     """Run script"""
     df_int = final_df_dict["task_int"].copy()
 
-    df_results = df_opp_cost.copy()
+    df_results = calculate_opportunity_costs()
     logging.debug(df_results.shape)
 
     df_results = purchase_discontinuity(
