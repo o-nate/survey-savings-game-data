@@ -106,7 +106,7 @@ def create_learning_effect_table(
             )
         )
         dict_for_dataframe["Change in performance"].append(f"({standard_deviation})")
-    return pd.DataFrame(dict_for_dataframe)
+    return pd.DataFrame(dict_for_dataframe), df_pivot
 
 
 def create_diff_in_diff_table(
