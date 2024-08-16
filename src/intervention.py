@@ -47,6 +47,119 @@ def calculate_change_in_measure(
     return before.mean(), after.mean(), p_value
 
 
+def create_learning_effect_table(
+    data: pd.DataFrame,
+    measures: List[str],
+    p_value_threshold: List[float],
+    decimal_places: int = 2,
+) -> pd.DataFrame:
+
+    ## Create pivot table to calculate difference pre- and post-treatment
+    df_pivot = pd.pivot_table(
+        data[["participant.label", "phase", "treatment"] + measures],
+        index=["participant.label", "treatment"],
+        columns=["phase"],
+    )
+    df_pivot.reset_index(inplace=True)
+    header_column = {"": [m for i in measures for m in [i, "(std)"]]}
+    results_columns = {"Session 1": [], "Session 2": [], "Change in performance": []}
+    dict_for_dataframe = header_column | results_columns
+    for m in measures:
+        df_pivot[f"Change in {m}"] = df_pivot[(m, "post")] - df_pivot[(m, "pre")]
+        before, after, p_value = calculate_change_in_measure(data, m)
+
+        ## Add difference
+        diff = str(round(after - before, decimal_places))
+        for pval in p_value_threshold:
+            diff += "*" if p_value <= pval else ""
+        logger.debug(
+            "measure: %s, after: %s, before: %s, diff: %s, pval: %s",
+            m,
+            after,
+            before,
+            diff,
+            p_value,
+        )
+        dict_for_dataframe["Session 1"].append(before)
+        dict_for_dataframe["Session 2"].append(after)
+        dict_for_dataframe["Change in performance"].append(diff)
+
+        ## Add standard deviation
+        standard_deviation = str(
+            round(
+                df_pivot[(m, "pre")].std(),
+                decimal_places,
+            )
+        )
+        dict_for_dataframe["Session 1"].append(f"({standard_deviation})")
+        standard_deviation = str(
+            round(
+                df_pivot[(m, "post")].std(),
+                decimal_places,
+            )
+        )
+        dict_for_dataframe["Session 2"].append(f"({standard_deviation})")
+        standard_deviation = str(
+            round(
+                df_pivot[f"Change in {m}"].std(),
+                decimal_places,
+            )
+        )
+        dict_for_dataframe["Change in performance"].append(f"({standard_deviation})")
+    return pd.DataFrame(dict_for_dataframe)
+
+
+def create_diff_in_diff_table(
+    data: pd.DataFrame,
+    measures: List[str],
+    treatments: List[str],
+    p_value_threshold: List[float],
+    decimal_places: int = 2,
+) -> pd.DataFrame:
+
+    ## Create pivot table to calculate difference pre- and post-treatment
+    df_pivot = pd.pivot_table(
+        data[["participant.label", "phase", "treatment"] + measures],
+        index=["participant.label", "treatment"],
+        columns=["phase"],
+    )
+    df_pivot.reset_index(inplace=True)
+    header_column = {"": [m for i in measures for m in [i, "(std)"]]}
+    results_columns = {t: [] for t in treatments}
+    dict_for_dataframe = header_column | results_columns
+    for m in measures:
+        df_pivot[f"Change in {m}"] = df_pivot[(m, "post")] - df_pivot[(m, "pre")]
+        for treat in treatments:
+            before, after, p_value = calculate_change_in_measure(
+                data[data["treatment"] == treat], m
+            )
+
+            ## Add difference
+            diff = str(round(after - before, decimal_places))
+            for pval in p_value_threshold:
+                diff += "*" if p_value <= pval else ""
+            logger.debug(
+                "measure: %s, treatment: %s, after: %s, before: %s, diff: %s, pval: %s",
+                m,
+                treat,
+                after,
+                before,
+                diff,
+                p_value,
+            )
+            dict_for_dataframe[treat].append(diff)
+
+            ## Add standard deviation
+            standard_deviation = str(
+                round(
+                    df_pivot[df_pivot["treatment"] == treat][f"Change in {m}"].std(),
+                    decimal_places,
+                )
+            )
+            dict_for_dataframe[treat].append(f"({standard_deviation})")
+    return pd.DataFrame(dict_for_dataframe)
+
+
 def measure_feedback_impact(
     data: pd.DataFrame, measures_impacted: List[str], error_feedback: List[str]
 ) -> None:
@@ -142,10 +255,24 @@ def main() -> None:
     logging.debug([c for c in data_df.columns if "confirm" in c])
     print(data_df.head())
 
+    # * Measure learning effect
+    learning_effect = create_learning_effect_table(
+        data_df,
+        measures=measures,
+        p_value_threshold=[0.1, 0.05, 0.01],
+    )
+    print("\nlearning effect")
+    print(learning_effect)
+
     # * Measure intervention impact
-    for treat in ["Intervention 1", "Intervention 2", "Control"]:
-        print(f"Treatment group: {treat}")
-        measure_intervention_impact(data_df[data_df["treatment"] == treat], measures)
+    diff_results = create_diff_in_diff_table(
+        data_df,
+        measures=measures,
+        treatments=["Intervention 1", "Intervention 2", "Control"],
+        p_value_threshold=[0.1, 0.05, 0.01],
+    )
+    print("\ndiff in diff")
+    print(diff_results)
 
     # * Measure impact of intervention feedback
     measure_feedback = input("Measure impact of intervention feedback? (y/n):")
