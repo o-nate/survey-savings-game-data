@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import statsmodels.formula.api as smf
+from statsmodels.stats.mediation import Mediation
 from statsmodels.iolib.summary2 import summary_col
 
 from scripts.utils import constants
@@ -544,12 +545,6 @@ results = summary_col(
 # %%
 results
 
-# %% [markdown]
-#### Analyse de médiation
-#
-# `Intervention → perception et anticipation → performance`
-# `Intervention → performance`
-
 
 # %% [markdown]
 ### Les participants prennent-ils plus en compte l’inflation pour s’adapter ?
@@ -660,14 +655,57 @@ results
 #
 # Croiser une à une
 _, df_performance_pivot = intervention.create_learning_effect_table(
-    df_inf_adapt, constants.PERFORMANCE_MEASURES, constants.P_VALUE_THRESHOLDS
+    df_inf_adapt,
+    constants.PERFORMANCE_MEASURES
+    + constants.QUAL_INFLATION_MEASURES
+    + constants.QUANT_INFLATION_MEASURES,
+    constants.P_VALUE_THRESHOLDS,
 )
 df_performance_pivot.rename(
-    columns={"Change in sreal": "diff_performance"}, inplace=True
+    columns={
+        "Change in sreal": "diff_performance",
+        "Change in Avg Qual Expectation Accuracy": "diff_avg_qual_exp",
+        "Change in Avg Qual Perception Accuracy": "diff_avg_qual_perc",
+        "Change in Average Uncertain Expectation": "diff_avg_uncertainty",
+        "Change in Perception_sensitivity": "diff_perception_sensitivity",
+        "Change in avg_perception_bias": "diff_perception_bias",
+        "Change in Expectation_sensitivity": "diff_expectation_sensitivity",
+        "Change in avg_expectation_bias": "diff_expectation_bias",
+    },
+    inplace=True,
 )
-df_performance_pivot = df_performance_pivot[["participant.label", "diff_performance"]]
+
+# %%
+df_performance_pivot = df_performance_pivot[
+    [
+        "participant.label",
+        "diff_performance",
+        "diff_avg_qual_perc",
+        "diff_avg_uncertainty",
+        "diff_perception_sensitivity",
+        "diff_perception_bias",
+        "diff_expectation_sensitivity",
+        "diff_expectation_bias",
+    ]
+]
+
+
+# %%
 df_performance_pivot.columns = df_performance_pivot.columns.droplevel()
-df_performance_pivot.columns = ["participant.label", "diff_performance"]
+
+# %%
+df_performance_pivot.columns = [
+    "participant.label",
+    "diff_performance",
+    "diff_avg_qual_perc",
+    "diff_avg_uncertainty",
+    "diff_perception_sensitivity",
+    "diff_perception_bias",
+    "diff_expectation_sensitivity",
+    "diff_expectation_bias",
+]
+
+# %%
 df_inf_adapt = df_inf_adapt.merge(df_performance_pivot, how="left")
 
 # %% [markdown]
@@ -686,3 +724,60 @@ results = model.fit()
 
 # %%
 results.summary()
+
+# %% [markdown]
+#### Analyse de médiation
+#
+# `Intervention → perception et anticipation → performance`
+# `Intervention → performance`
+df_inf_adapt.rename(
+    columns={"Average Uncertain Expectation": "avg_uncertainty"}, inplace=True
+)
+data = df_inf_adapt[df_inf_adapt["month"] == 120]
+
+regressions = {}
+change_measures = [
+    "diff_performance",
+    "diff_avg_qual_perc",
+    "diff_avg_uncertainty",
+    "diff_perception_sensitivity",
+    "diff_perception_bias",
+    "diff_expectation_sensitivity",
+    "diff_expectation_bias",
+]
+for m in change_measures:
+    model = smf.ols(
+        formula=f"""{m} ~ C(treatment)""",
+        data=data,
+    )
+    regressions[m] = model.fit()
+
+outcome_model = smf.ols(
+    formula="""diff_performance ~ C(treatment) + diff_avg_qual_perc + \
+        diff_avg_uncertainty + diff_perception_sensitivity + diff_perception_bias +\
+            diff_expectation_sensitivity + diff_expectation_bias
+        """,
+    data=data,
+)
+regressions["outcome_model"] = outcome_model.fit()
+
+# TODO: Bootstrap for statistical significance
+
+results = summary_col(
+    results=list(regressions.values()),
+    stars=True,
+    model_names=list(regressions.keys()),
+)
+
+mediator_model = smf.ols(
+    formula="""diff_avg_uncertainty ~ C(treatment)""",
+    data=data,
+)
+
+med = Mediation(
+    outcome_model, mediator_model, "C(treatment)", "diff_avg_uncertainty"
+).fit()
+med.summary()
+
+# %%
+results
