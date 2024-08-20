@@ -3,12 +3,7 @@
 import logging
 import sys
 
-from functools import reduce
-import matplotlib.pyplot as plt
-import pandas as pd
-import seaborn as sns
-
-from scripts.preprocess import final_df_dict
+from src.preprocess import final_df_dict
 from src.utils.logging_helpers import set_external_module_log_levels
 
 # * Logging settings
