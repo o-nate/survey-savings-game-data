@@ -33,6 +33,17 @@ WINDOW = 3
 def calculate_change_in_measure(
     data: pd.DataFrame, measure_impacted: str, display_results: bool = False
 ) -> Tuple[float, float, float]:
+    """Calculate change in performance measure
+
+    Args:
+        data (pd.DataFrame): DataFrame with performance measures and participant labels
+        measure_impacted (str): Measure to calculate change for
+        display_results (bool, optional): Toggle whether results are printed directly.
+        Defaults to False.
+
+    Returns:
+        Tuple[float, float, float]: Mean values before and after and associate p-value
+    """
     before = data[(data["phase"] == "pre")][measure_impacted]
     after = data[(data["phase"] == "post")][measure_impacted]
     p_value = stats.wilcoxon(before, after, zero_method="zsplit", nan_policy="raise")[1]
@@ -52,8 +63,22 @@ def create_learning_effect_table(
     measures: List[str],
     p_value_threshold: List[float],
     decimal_places: int = 2,
-) -> pd.DataFrame:
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """Generate table to show the change in performance measures between Savings Game
+    rounds.
 
+    Args:
+        data (pd.DataFrame): DataFrame with performance measures, rounds, and
+        participant labels
+        measures (List[str]): Measures to calculate change for
+        p_value_threshold (List[float]): List of p-values that correspond to stars
+        added on results
+        decimal_places (int, optional): Decimal place to round to. Defaults to 2.
+
+    Returns:
+        Tuple[pd.DataFrame, pd.DataFrame]: DataFrame with results and DataFrame with
+        pivoted aggregate data
+    """
     ## Create pivot table to calculate difference pre- and post-treatment
     df_pivot = pd.pivot_table(
         data[["participant.label", "phase", "treatment"] + measures],
@@ -116,7 +141,20 @@ def create_diff_in_diff_table(
     p_value_threshold: List[float],
     decimal_places: int = 2,
 ) -> pd.DataFrame:
+    """Generate table to show difference-in-difference results between treatments
 
+    Args:
+        data (pd.DataFrame): DataFrame with performance measures, rounds,
+        treatment groups, and participant labels
+        measures (List[str]): List of measures to calculate change for
+        treatments (List[str]): List of treatment group names
+        p_value_threshold (List[float]): List of p-values that correspond to stars
+        added on results
+        decimal_places (int, optional): Decimal place to round to. Defaults to 2.s
+
+    Returns:
+        pd.DataFrame: DataFrame with diff-in-diff results
+    """
     ## Create pivot table to calculate difference pre- and post-treatment
     df_pivot = pd.pivot_table(
         data[["participant.label", "phase", "treatment"] + measures],
@@ -164,7 +202,14 @@ def measure_feedback_impact(
     data: pd.DataFrame, measures_impacted: List[str], error_feedback: List[str]
 ) -> None:
     """Print comparison between those who are convinced by intervention feedback
-    and not across measures"""
+    and not across measures
+
+    Args:
+        data (pd.DataFrame): DataFrame with performance measures, rounds,
+        treatment groups, and participant labels
+        measures_impacted (List[str]): Measure to calculate change for
+        error_feedback (List[str]): List of pieces of feedback to analyze
+    """
     for m in measures_impacted:
         for error in error_feedback:
             convinced_response = 9 if error == "convinced" else 3
@@ -289,7 +334,7 @@ def main() -> None:
         measure_feedback_impact(data_df, measures, errors)
 
     graph_data = input("Plot intervention data? (y/n):")
-    if graph_data != "y" and graph_data != "n":
+    if graph_data not in ("y", "n"):
         graph_data = input("Please respond with 'y' or 'n':")
     if graph_data == "y":
         df_melted = data_df.melt(
@@ -363,7 +408,7 @@ def main() -> None:
         plt.show()
 
     graph_data = input("Plot general response data? (y/n):")
-    if graph_data != "y" and graph_data != "n":
+    if graph_data not in ("y", "n"):
         graph_data = input("Please respond with 'y' or 'n':")
     if graph_data == "y":
         data = df_int.melt(
