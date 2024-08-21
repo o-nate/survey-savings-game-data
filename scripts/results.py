@@ -7,6 +7,7 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from pingouin import mediation_analysis
 import seaborn as sns
 import statsmodels.formula.api as smf
 from statsmodels.stats.mediation import Mediation
@@ -761,7 +762,11 @@ outcome_model = smf.ols(
 )
 regressions["outcome_model"] = outcome_model.fit()
 
-# TODO: Bootstrap for statistical significance
+mediator_model = smf.ols(
+    formula="""diff_avg_uncertainty ~ C(treatment)""",
+    data=data,
+)
+regressions["mediator_model"] = mediator_model.fit()
 
 results = summary_col(
     results=list(regressions.values()),
@@ -769,15 +774,88 @@ results = summary_col(
     model_names=list(regressions.keys()),
 )
 
-mediator_model = smf.ols(
-    formula="""diff_avg_uncertainty ~ C(treatment)""",
-    data=data,
-)
-
-med = Mediation(
-    outcome_model, mediator_model, "C(treatment)", "diff_avg_uncertainty"
-).fit()
-med.summary()
-
 # %%
 results
+
+# %%
+# * Replace treatment with dummy categories
+criteria = [
+    df_inf_adapt["treatment"] == "Intervention 1",
+    df_inf_adapt["treatment"] == "Intervention 2",
+]
+choices = [1, 2]
+df_inf_adapt["control"] = np.where(df_inf_adapt["treatment"] == "Control", 1, 0)
+df_inf_adapt["intervention_1"] = np.where(
+    df_inf_adapt["treatment"] == "Intervention 1", 1, 0
+)
+df_inf_adapt["intervention_2"] = np.where(
+    df_inf_adapt["treatment"] == "Intervention 2", 1, 0
+)
+# %%
+data = df_inf_adapt[df_inf_adapt["month"] == 120]
+print(constants.MEDIATION_CONTROL)
+mediation_analysis(
+    data,
+    x=constants.MEDIATION_CONTROL,
+    m=[
+        "diff_avg_qual_perc",
+        "diff_avg_uncertainty",
+        "diff_perception_sensitivity",
+        "diff_perception_bias",
+        "diff_expectation_sensitivity",
+        "diff_expectation_bias",
+    ],
+    y="diff_performance",
+    alpha=0.05,
+    seed=42,
+)
+
+# %%
+print(constants.MEDIATION_INTERVENTION_1)
+mediation_analysis(
+    data,
+    x=constants.MEDIATION_INTERVENTION_1,
+    m=[
+        "diff_avg_qual_perc",
+        "diff_avg_uncertainty",
+        "diff_perception_sensitivity",
+        "diff_perception_bias",
+        "diff_expectation_sensitivity",
+        "diff_expectation_bias",
+    ],
+    y="diff_performance",
+    alpha=0.05,
+    seed=42,
+)
+
+# %%
+print(constants.MEDIATION_INTERVENTION_2)
+mediation_analysis(
+    data,
+    x=constants.MEDIATION_INTERVENTION_2,
+    m=[
+        "diff_avg_qual_perc",
+        "diff_avg_uncertainty",
+        "diff_perception_sensitivity",
+        "diff_perception_bias",
+        "diff_expectation_sensitivity",
+        "diff_expectation_bias",
+    ],
+    y="diff_performance",
+    alpha=0.05,
+    seed=42,
+)
+
+# %% [markdown]
+# The mediation analysis of each treatment shows:
+# - <b><u>Control</u></b> neither improves performance (in fact directly worsening performance)
+# nor improves mediating factors. The change in average uncertainty does improve
+# performance, though.
+# - <b><u>Intervention 1</u></b> improves performance through full mediation, improving the
+# mediating factor of the change in average uncertainty. The intervention also improves
+# expectation sensitivity statistically significantly, but the indirect effect this
+# has on performance is not signficant.
+# - <b><u>Intervention 2</u></b> improves performance through partial mediation,
+# improving performance directly as well as through the mediating factor of the
+# change in average uncertainty and expectation sensitivity, but the indirect
+# effect these mediators on performance is not signficant.

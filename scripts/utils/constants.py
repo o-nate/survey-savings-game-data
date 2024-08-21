@@ -47,3 +47,8 @@ INDIVIDUAL_CHARACTERISTICS = [
     "timePreferences_choice_count",
     "timePreferences_switches",
 ]
+
+# * Mediation analysis dummies
+MEDIATION_CONTROL = "control"
+MEDIATION_INTERVENTION_1 = "intervention_1"
+MEDIATION_INTERVENTION_2 = "intervention_2"
