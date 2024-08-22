@@ -313,7 +313,6 @@ def create_survey_df(include_inflation: bool = False) -> pd.DataFrame:
         inplace=True,
     )
     logger.debug(df_survey.info())
-    print(df_survey.head())
 
     # * Add actual inflation
     if include_inflation:
