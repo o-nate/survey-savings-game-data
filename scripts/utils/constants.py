@@ -30,6 +30,25 @@ PERFORMANCE_MEASURES_NEW_NAMES = ["Total savings", "Over-stocking", "Wasteful-st
 PURCHASE_ADAPTATION_OLD_NAME = ["avg_q_%"]
 PURCHASE_ADAPTATION_NEW_NAME = ["Purchase adaptation"]
 
+INFLATION_RESULTS_MEASURES = [
+    "Quant Expectation",
+    "Quant Perception",
+    "Qual Perception_low",
+    "Qual Perception_high",
+    "Qual Expectation_low",
+    "Qual Expectation_high",
+    "Avg Qual Perception Accuracy",
+    "Avg Qual Expectation Accuracy",
+    # "Perception_bias",
+    "Perception_bias_high",
+    "Perception_bias_low",
+    "Perception_sensitivity",
+    # "Expectation_bias",
+    "Expectation_bias_high",
+    "Expectation_bias_low",
+    "Expectation_sensitivity",
+]
+
 P_VALUE_THRESHOLDS = [0.1, 0.05, 0.01]
 DECIMAL_PLACES = 15
 

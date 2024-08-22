@@ -141,22 +141,52 @@ fig = sns.boxplot(
 
 # %% [markdown]
 ## Expectation and perception of inflation
-
-# %% [markdown]
 ### Quality of inflation expectations and perceptions and performance
+#
+# As can be observed in the graph of perceived and expected inflation, subjects
+# generally track inflation; however, their quantitative estimates are inaccurate.
+# In other words, subjects may have more accurate qualitative estimates than
+# quantitative. They demonstrate signficant biases in both low- and high-inflation
+# phases, overestimating in low inflation and underestimating in high inflation.
+# They sensitivity to changes in inflation, though, is positive. Further, their
+# qualitative estimates, though, demonstrate greater accuracy, with subjects
+# correctly perceiving the change in prices 78.2% of the time and expecting the change
+# in prices 50.4%.
+#
+# That said, we find that perception and expectation sensitivity correlated positively
+# with overall performance. Low-inflation perception and expectation biases correlate
+# negatively with overall performance. Interestingly, high-inflation perception
+# and expectation biases correlate positively. This makes intuitive sense since an
+# overestimation of inflation in a high-inflation phase implies an even greater sense
+# of urgency to stock up.
+#
+# In terms of purchase adaptation (as percentage of
+# cumulative quantity purchased) perception and expectation biases
+# (in high-inflation) correlate positively with an increase in purchases. Expectation
+# sensitivity also correlates positively with an increase in purchases.
+#
+# Subjects' qualitative perceptions in low-inflation phases correlate negatively
+# with overall performance (expectations do not correlate statically significantly).
+# Their qualitative perceptions as well as expectations in high-inflation phases
+# correlate positively with overall performance.
+#
+# Further, our measures of average accuracy of qualitative estimates correlate
+# positively with overall performance.
+
 df_survey = process_survey.create_survey_df(include_inflation=True)
 
 # * Plot estimates over time
 estimates = ["Quant Perception", "Quant Expectation", "Actual", "Upcoming"]
 g = sns.relplot(
-    data=df_survey[df_survey["Measure"].isin(estimates)],
+    data=df_survey[
+        (df_survey["Measure"].isin(estimates)) & (df_survey["participant.round"] == 1)
+    ],
     x="Month",
     y="Estimate",
     errorbar=None,
     hue="Measure",
     style="Measure",
     kind="line",
-    col="participant.round",
 )
 
 ## Adjust titles
@@ -167,7 +197,6 @@ plt.show()
 df_inf_measures = process_survey.pivot_inflation_measures(df_survey)
 df_inf_measures = process_survey.include_inflation_measures(df_inf_measures)
 
-df_inf_measures[df_inf_measures["participant.round"] == 1].describe().T
 
 # %% [markdown]
 #### Relationship between expectations, perceptions, and decisions
@@ -193,6 +222,8 @@ df_bias = pd.pivot_table(
             "inf_phase",
             "Perception_bias",
             "Expectation_bias",
+            "Qual Perception",
+            "Qual Expectation",
         ]
     ],
     index=["participant.code"],
@@ -247,22 +278,19 @@ df_accuracy.rename(
 
 df_inf_measures = df_inf_measures.merge(df_accuracy.reset_index(), how="left")
 
+df_inf_measures[df_inf_measures["participant.round"] == 1].describe()[
+    constants.INFLATION_RESULTS_MEASURES[2:]
+].T
+
 # %%
 create_pearson_correlation_matrix(
     df_inf_measures[
         (df_inf_measures["participant.round"] == 1) & (df_inf_measures["month"] == 120)
     ][
-        [
-            "Perception_sensitivity",
-            "Perception_bias_low",
-            "Perception_bias_high",
-            "Expectation_sensitivity",
-            "Expectation_bias_low",
-            "Expectation_bias_high",
-            "Avg Qual Perception Accuracy",
-            "Avg Qual Expectation Accuracy",
+        constants.INFLATION_RESULTS_MEASURES[2:]
+        + [
             "avg_q",
-            "avg_q_%",
+            constants.PURCHASE_ADAPTATION_NEW_NAME[0],
             "sreal",
         ]
     ],
