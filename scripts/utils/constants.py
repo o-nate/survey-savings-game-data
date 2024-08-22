@@ -1,5 +1,24 @@
 """Constants for scripts modules"""
 
+QUESTIONNAIRE_MEASURES = [
+    "age",
+    "gender",
+    "educationLevel",
+    "employmentStatus",
+    "financialStatusIncome",
+    "financialStatusSavings_1",
+    "financialStatusSavings_2",
+    "financialStatusDebt_1",
+    "financialStatusDebt_2",
+    "stocks",
+    "mutualFunds",
+    "bonds",
+    "savingsAccounts",
+    "lifeInsurance",
+    "retirementAccounts",
+    "crypto",
+]
+
 # * Define `decision quantity` measure
 DECISION_QUANTITY = "cum_decision"
 

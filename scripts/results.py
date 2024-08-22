@@ -44,35 +44,14 @@ pd.options.display.max_rows = None
 
 # %% [markdown]
 ## Descriptive statistics: Subjects
-
-# %%
 df_questionnaire = final_df_dict["Questionnaire"].copy()
-df_questionnaire.head()
-
-measures = [
-    "age",
-    "gender",
-    "educationLevel",
-    "employmentStatus",
-    "financialStatusIncome",
-    "financialStatusSavings_1",
-    "financialStatusSavings_2",
-    "financialStatusDebt_1",
-    "financialStatusDebt_2",
-]
-## Investment holdings
-holdings = [
-    "stocks",
-    "mutualFunds",
-    "bonds",
-    "savingsAccounts",
-    "lifeInsurance",
-    "retirementAccounts",
-    "crypto",
-]
 
 df_questionnaire[
-    [m for m in df_questionnaire if any(m in m for m in measures + holdings)]
+    [
+        m
+        for m in df_questionnaire
+        if any(qm in m for qm in constants.QUESTIONNAIRE_MEASURES)
+    ]
 ].describe().T
 
 
