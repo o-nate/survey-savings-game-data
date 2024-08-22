@@ -436,11 +436,6 @@ def calculate_opportunity_costs() -> pd.DataFrame:
         "Calculating savings balances for strategies: %s", ", ".join(strategies)
     )
     df_opp_cost = strategy_savings_calc(strategies, df_opp_cost)
-    print(
-        df_opp_cost[(df_opp_cost["month"] == 13) | (df_opp_cost["month"] == 31)].head()
-    )
-
-    # ## Actual savings
 
     ## Add actual savings balance
     df_save = final_df_dict["finalSavings"].copy()

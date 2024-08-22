@@ -44,47 +44,37 @@ pd.options.display.max_rows = None
 
 # %% [markdown]
 ## Descriptive statistics: Subjects
-
-# %%
 df_questionnaire = final_df_dict["Questionnaire"].copy()
-df_questionnaire.head()
-
-measures = [
-    "age",
-    "gender",
-    "educationLevel",
-    "employmentStatus",
-    "financialStatusIncome",
-    "financialStatusSavings_1",
-    "financialStatusSavings_2",
-    "financialStatusDebt_1",
-    "financialStatusDebt_2",
-]
-## Investment holdings
-holdings = [
-    "stocks",
-    "mutualFunds",
-    "bonds",
-    "savingsAccounts",
-    "lifeInsurance",
-    "retirementAccounts",
-    "crypto",
-]
 
 df_questionnaire[
-    [m for m in df_questionnaire if any(m in m for m in measures + holdings)]
+    [
+        m
+        for m in df_questionnaire
+        if any(qm in m for qm in constants.QUESTIONNAIRE_MEASURES)
+    ]
 ].describe().T
 
 
 # %% [markdown]
 ## Overall performance
+# As can be seen in the graph comparing to the maximum and naïve
+# strategies, the average performance is well below the maximum. Overall, the
+# average performance also does not improve drastically between rounds of the
+# Savings Game when taken across all treatment group together.
 df_opp_cost = calc_opp_costs.calculate_opportunity_costs()
 calc_opp_costs.plot_savings_and_stock(df_opp_cost, col="phase", palette="tab10")
 
 
 # %% [markdown]
 ## Behavior in the Savings Game
-### Performance measures: Over-, under-, and wasteful-stocking and purchase adaptation
+### Performance measures: Over- and wasteful-stocking and purchase adaptation
+# In the first round across all subjects, the average total savings as a percent of
+# the maximum is 53.6%. Over- and wasteful-stocking account for 19.3% and 8.8% of
+# the maximum. As can be seen in the boxplot, however, the mean wasteful-stocking
+# measure is greatly skewed by outliers. Finally, average purchase adaptation (as a
+# percentage of the cumulative quantity purchased leading up to the inflation
+# phase-change) is 9.2%, however also with significant outliers; the median is 3.1%.
+
 df_measures = discontinuity.purchase_discontinuity(
     df_opp_cost, constants.DECISION_QUANTITY, constants.WINDOW
 )
@@ -99,44 +89,55 @@ df_measures = df_measures[[m for m in df_measures.columns if "avg_q" not in m]].
     df_pivot_measures, how="left"
 )
 
+## Rename columns for results table
+df_measures.rename(
+    columns={
+        k: v
+        for k, v in zip(
+            constants.PERFORMANCE_MEASURES_OLD_NAMES
+            + constants.PURCHASE_ADAPTATION_OLD_NAME,
+            constants.PERFORMANCE_MEASURES_NEW_NAMES
+            + constants.PURCHASE_ADAPTATION_NEW_NAME,
+        )
+    },
+    inplace=True,
+)
+df_measures[(df_measures["month"] == 120) & (df_measures["phase"] == "pre")].describe()[
+    constants.PERFORMANCE_MEASURES_NEW_NAMES + constants.PURCHASE_ADAPTATION_NEW_NAME
+].T
+
 # %%
 df_pivot_measures = df_measures[
     (df_measures["month"] == 120) & (df_measures["participant.round"] == 1)
 ].melt(
     id_vars="participant.label",
-    value_vars=["sreal_%", "early_%", "excess_%"],
+    value_vars=constants.PERFORMANCE_MEASURES_NEW_NAMES
+    + constants.PURCHASE_ADAPTATION_NEW_NAME,
     var_name="Performance measure",
     value_name="Percent of maximum",
 )
-old_names = ["sreal_%", "early_%", "excess_%"]
-new_names = ["Total savings", "Over-stocking", "Wasteful-stocking"]
-df_pivot_measures["Performance measure"].replace(old_names, new_names, inplace=True)
 df_pivot_measures["Percent of maximum"] = df_pivot_measures["Percent of maximum"] * 100
 fig = sns.boxplot(
-    data=df_pivot_measures,
+    data=df_pivot_measures[
+        df_pivot_measures["Performance measure"].isin(
+            constants.PERFORMANCE_MEASURES_NEW_NAMES
+        )
+    ],
     x="Performance measure",
     y="Percent of maximum",
 )
-
 # %%
-df_pivot_measures = df_measures[
-    (df_measures["month"] == 33) & (df_measures["participant.round"] == 1)
-].melt(
-    id_vars=["participant.label", "participant.round"],
-    value_vars=["avg_q_%"],
-    var_name="Performance measure",
-    value_name="Percent",
-)
-old_names = ["avg_q_%"]
-new_names = ["Purchase adaptation"]
-df_pivot_measures["Performance measure"].replace(old_names, new_names, inplace=True)
+df_pivot_measures["Percent of maximum"] = df_pivot_measures["Percent of maximum"] / 100
+df_pivot_measures.rename(columns={"Percent of maximum": "Percent"}, inplace=True)
 fig = sns.boxplot(
-    data=df_pivot_measures,
+    data=df_pivot_measures[
+        df_pivot_measures["Performance measure"].isin(
+            constants.PURCHASE_ADAPTATION_NEW_NAME
+        )
+    ],
     x="Performance measure",
     y="Percent",
-    hue="participant.round",
 )
-
 
 # %% [markdown]
 ## Expectation and perception of inflation

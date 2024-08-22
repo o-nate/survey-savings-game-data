@@ -1,10 +1,34 @@
 """Constants for scripts modules"""
 
+QUESTIONNAIRE_MEASURES = [
+    "age",
+    "gender",
+    "educationLevel",
+    "employmentStatus",
+    "financialStatusIncome",
+    "financialStatusSavings_1",
+    "financialStatusSavings_2",
+    "financialStatusDebt_1",
+    "financialStatusDebt_2",
+    "stocks",
+    "mutualFunds",
+    "bonds",
+    "savingsAccounts",
+    "lifeInsurance",
+    "retirementAccounts",
+    "crypto",
+]
+
 # * Define `decision quantity` measure
 DECISION_QUANTITY = "cum_decision"
 
 # * Define purchase window, i.e. how many months before and after inflation phase change to count
 WINDOW = 3
+
+PERFORMANCE_MEASURES_OLD_NAMES = ["sreal_%", "early_%", "excess_%"]
+PERFORMANCE_MEASURES_NEW_NAMES = ["Total savings", "Over-stocking", "Wasteful-stocking"]
+PURCHASE_ADAPTATION_OLD_NAME = ["avg_q_%"]
+PURCHASE_ADAPTATION_NEW_NAME = ["Purchase adaptation"]
 
 P_VALUE_THRESHOLDS = [0.1, 0.05, 0.01]
 DECIMAL_PLACES = 15
