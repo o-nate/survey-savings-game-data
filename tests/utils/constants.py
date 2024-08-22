@@ -15,6 +15,40 @@ WISC_N_PE = 3
 WISC_N_SE = 5
 DATAFRAME_SHAPE = (157, 10)
 
+# * `intervention`
+CHANGE_IN_PERFORMANCE = {
+    "Intervention 1": {
+        "Initial Total savings": 2161.29,
+        "Final Total savings": 2497.76,
+        "Initial Over-stocking": 769.30,
+        "Final Over-stocking": 708.57,
+        "Initial Under-stocking": 688.69,
+        "Final Under-stocking": 690.13,
+        "Initial Wasteful-stocking": 498.12,
+        "Final Wasteful-stocking": 221.41,
+    },
+    "Intervention 2": {
+        "Initial Total savings": 2409.73,
+        "Final Total savings": 2670.13,
+        "Initial Over-stocking": 796.92,
+        "Final Over-stocking": 456.94,
+        "Initial Under-stocking": 749.09,
+        "Final Under-stocking": 860.30,
+        "Initial Wasteful-stocking": 161.69,
+        "Final Wasteful-stocking": 130.78,
+    },
+    "Control": {
+        "Initial Total savings": 2017.71,
+        "Final Total savings": 1958.00,
+        "Initial Over-stocking": 810.69,
+        "Final Over-stocking": 1432.16,
+        "Initial Under-stocking": 815.44,
+        "Final Under-stocking": 499.98,
+        "Initial Wasteful-stocking": 473.93,
+        "Final Wasteful-stocking": 227.80,
+    },
+}
+
 # * `knowledge`
 SCORE = 1
 FIN_LIT_PARTICIPANT_CODE = "xsfez6ci"
