@@ -2,17 +2,16 @@
 
 import logging
 import sys
-from typing import Dict, List
+from typing import List, Tuple
 
-from datetime import datetime
 import matplotlib.pyplot as plt
 import pandas as pd
 from scipy import stats
 import seaborn as sns
 
-from calc_opp_costs import df_opp_cost
-from discontinuity import purchase_discontinuity
-from preprocess import final_df_dict
+from src.calc_opp_costs import calculate_opportunity_costs
+from src.discontinuity import purchase_discontinuity
+from src.preprocess import final_df_dict
 from src.utils.logging_helpers import set_external_module_log_levels
 
 # * Logging settings
@@ -28,31 +27,189 @@ DECISION_QUANTITY = "cum_decision"
 # * Define purchase window, i.e. how many months before and after inflation phase change to count
 WINDOW = 3
 
+"""Print comparison of performance before and after intervention with p values"""
 
-def measure_intervention_impact(
-    data: pd.DataFrame, measures_impacted: List[str]
-) -> None:
-    """Print comparison of performance before and after intervention with p values"""
-    for m in measures_impacted:
-        before = data[(data["phase"] == "pre")][m]
-        after = data[(data["phase"] == "post")][m]
-        p_value = stats.wilcoxon(
-            before, after, zero_method="zsplit", nan_policy="raise"
-        )[1]
-        print(f"Initial {m}: {before.mean()}")
-        print(f"Final {m}: {after.mean()}")
+
+def calculate_change_in_measure(
+    data: pd.DataFrame, measure_impacted: str, display_results: bool = False
+) -> Tuple[float, float, float]:
+    """Calculate change in performance measure
+
+    Args:
+        data (pd.DataFrame): DataFrame with performance measures and participant labels
+        measure_impacted (str): Measure to calculate change for
+        display_results (bool, optional): Toggle whether results are printed directly.
+        Defaults to False.
+
+    Returns:
+        Tuple[float, float, float]: Mean values before and after and associate p-value
+    """
+    before = data[(data["phase"] == "pre")][measure_impacted]
+    after = data[(data["phase"] == "post")][measure_impacted]
+    p_value = stats.wilcoxon(before, after, zero_method="zsplit", nan_policy="raise")[1]
+    if display_results:
+        print(f"Initial {measure_impacted}: {before.mean()}")
+        print(f"Final {measure_impacted}: {after.mean()}")
         print(
-            f"Change in {m}:",
+            f"Change in {measure_impacted}:",
             after.mean() - before.mean(),
         )
-        print(f"p value for change in {m}:\t{p_value}")
+        print(f"p value for change in {measure_impacted}:\t{p_value}")
+    return before.mean(), after.mean(), p_value
+
+
+def create_learning_effect_table(
+    data: pd.DataFrame,
+    measures: List[str],
+    p_value_threshold: List[float],
+    decimal_places: int = 2,
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """Generate table to show the change in performance measures between Savings Game
+    rounds.
+
+    Args:
+        data (pd.DataFrame): DataFrame with performance measures, rounds, and
+        participant labels
+        measures (List[str]): Measures to calculate change for
+        p_value_threshold (List[float]): List of p-values that correspond to stars
+        added on results
+        decimal_places (int, optional): Decimal place to round to. Defaults to 2.
+
+    Returns:
+        Tuple[pd.DataFrame, pd.DataFrame]: DataFrame with results and DataFrame with
+        pivoted aggregate data
+    """
+    ## Create pivot table to calculate difference pre- and post-treatment
+    df_pivot = pd.pivot_table(
+        data[["participant.label", "phase", "treatment"] + measures],
+        index=["participant.label", "treatment"],
+        columns=["phase"],
+    )
+    df_pivot.reset_index(inplace=True)
+    header_column = {"": [m for i in measures for m in [i, "(std)"]]}
+    results_columns = {"Session 1": [], "Session 2": [], "Change in performance": []}
+    dict_for_dataframe = header_column | results_columns
+    for m in measures:
+        df_pivot[f"Change in {m}"] = df_pivot[(m, "post")] - df_pivot[(m, "pre")]
+        before, after, p_value = calculate_change_in_measure(data, m)
+
+        ## Add difference
+        diff = str(round(after - before, decimal_places))
+        for pval in p_value_threshold:
+            diff += "*" if p_value <= pval else ""
+        logger.debug(
+            "measure: %s, after: %s, before: %s, diff: %s, pval: %s",
+            m,
+            after,
+            before,
+            diff,
+            p_value,
+        )
+        dict_for_dataframe["Session 1"].append(before)
+        dict_for_dataframe["Session 2"].append(after)
+        dict_for_dataframe["Change in performance"].append(diff)
+
+        ## Add standard deviation
+        standard_deviation = str(
+            round(
+                df_pivot[(m, "pre")].std(),
+                decimal_places,
+            )
+        )
+        dict_for_dataframe["Session 1"].append(f"({standard_deviation})")
+        standard_deviation = str(
+            round(
+                df_pivot[(m, "post")].std(),
+                decimal_places,
+            )
+        )
+        dict_for_dataframe["Session 2"].append(f"({standard_deviation})")
+        standard_deviation = str(
+            round(
+                df_pivot[f"Change in {m}"].std(),
+                decimal_places,
+            )
+        )
+        dict_for_dataframe["Change in performance"].append(f"({standard_deviation})")
+    return pd.DataFrame(dict_for_dataframe), df_pivot
+
+
+def create_diff_in_diff_table(
+    data: pd.DataFrame,
+    measures: List[str],
+    treatments: List[str],
+    p_value_threshold: List[float],
+    decimal_places: int = 2,
+) -> pd.DataFrame:
+    """Generate table to show difference-in-difference results between treatments
+
+    Args:
+        data (pd.DataFrame): DataFrame with performance measures, rounds,
+        treatment groups, and participant labels
+        measures (List[str]): List of measures to calculate change for
+        treatments (List[str]): List of treatment group names
+        p_value_threshold (List[float]): List of p-values that correspond to stars
+        added on results
+        decimal_places (int, optional): Decimal place to round to. Defaults to 2.s
+
+    Returns:
+        pd.DataFrame: DataFrame with diff-in-diff results
+    """
+    ## Create pivot table to calculate difference pre- and post-treatment
+    df_pivot = pd.pivot_table(
+        data[["participant.label", "phase", "treatment"] + measures],
+        index=["participant.label", "treatment"],
+        columns=["phase"],
+    )
+    df_pivot.reset_index(inplace=True)
+    header_column = {"": [m for i in measures for m in [i, "(std)"]]}
+    results_columns = {t: [] for t in treatments}
+    dict_for_dataframe = header_column | results_columns
+    for m in measures:
+        df_pivot[f"Change in {m}"] = df_pivot[(m, "post")] - df_pivot[(m, "pre")]
+        for treat in treatments:
+            before, after, p_value = calculate_change_in_measure(
+                data[data["treatment"] == treat], m
+            )
+
+            ## Add difference
+            diff = str(round(after - before, decimal_places))
+            for pval in p_value_threshold:
+                diff += "*" if p_value <= pval else ""
+            logger.debug(
+                "measure: %s, treatment: %s, after: %s, before: %s, diff: %s, pval: %s",
+                m,
+                treat,
+                after,
+                before,
+                diff,
+                p_value,
+            )
+            dict_for_dataframe[treat].append(diff)
+
+            ## Add standard deviation
+            standard_deviation = str(
+                round(
+                    df_pivot[df_pivot["treatment"] == treat][f"Change in {m}"].std(),
+                    decimal_places,
+                )
+            )
+            dict_for_dataframe[treat].append(f"({standard_deviation})")
+    return pd.DataFrame(dict_for_dataframe)
 
 
 def measure_feedback_impact(
     data: pd.DataFrame, measures_impacted: List[str], error_feedback: List[str]
 ) -> None:
     """Print comparison between those who are convinced by intervention feedback
-    and not across measures"""
+    and not across measures
+
+    Args:
+        data (pd.DataFrame): DataFrame with performance measures, rounds,
+        treatment groups, and participant labels
+        measures_impacted (List[str]): Measure to calculate change for
+        error_feedback (List[str]): List of pieces of feedback to analyze
+    """
     for m in measures_impacted:
         for error in error_feedback:
             convinced_response = 9 if error == "convinced" else 3
@@ -100,7 +257,7 @@ def main() -> None:
     """Run script"""
     df_int = final_df_dict["task_int"].copy()
 
-    df_results = df_opp_cost.copy()
+    df_results = calculate_opportunity_costs()
     logging.debug(df_results.shape)
 
     df_results = purchase_discontinuity(
@@ -143,10 +300,24 @@ def main() -> None:
     logging.debug([c for c in data_df.columns if "confirm" in c])
     print(data_df.head())
 
+    # * Measure learning effect
+    learning_effect = create_learning_effect_table(
+        data_df,
+        measures=measures,
+        p_value_threshold=[0.1, 0.05, 0.01],
+    )
+    print("\nlearning effect")
+    print(learning_effect)
+
     # * Measure intervention impact
-    for treat in ["Intervention 1", "Intervention 2", "Control"]:
-        print(f"Treatment group: {treat}")
-        measure_intervention_impact(data_df[data_df["treatment"] == treat], measures)
+    diff_results = create_diff_in_diff_table(
+        data_df,
+        measures=measures,
+        treatments=["Intervention 1", "Intervention 2", "Control"],
+        p_value_threshold=[0.1, 0.05, 0.01],
+    )
+    print("\ndiff in diff")
+    print(diff_results)
 
     # * Measure impact of intervention feedback
     measure_feedback = input("Measure impact of intervention feedback? (y/n):")
@@ -163,7 +334,7 @@ def main() -> None:
         measure_feedback_impact(data_df, measures, errors)
 
     graph_data = input("Plot intervention data? (y/n):")
-    if graph_data != "y" and graph_data != "n":
+    if graph_data not in ("y", "n"):
         graph_data = input("Please respond with 'y' or 'n':")
     if graph_data == "y":
         df_melted = data_df.melt(
@@ -237,7 +408,7 @@ def main() -> None:
         plt.show()
 
     graph_data = input("Plot general response data? (y/n):")
-    if graph_data != "y" and graph_data != "n":
+    if graph_data not in ("y", "n"):
         graph_data = input("Please respond with 'y' or 'n':")
     if graph_data == "y":
         data = df_int.melt(

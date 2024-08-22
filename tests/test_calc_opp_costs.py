@@ -3,7 +3,7 @@
 import logging
 import sys
 
-from src.calc_opp_costs import df_opp_cost
+from src.calc_opp_costs import calculate_opportunity_costs
 from src.utils.logging_helpers import set_external_module_log_levels
 
 # * Logging settings
@@ -17,6 +17,7 @@ TEST_PARTICIPANT_CODE = "17c9d4zc"
 logger.info("Initiating tests")
 
 logger.info("Testing late cost makes sense at month 1")
+df_opp_cost = calculate_opportunity_costs()
 assert (
     df_opp_cost[df_opp_cost["participant.code"] == TEST_PARTICIPANT_CODE]["late"].iat[0]
     == 0
