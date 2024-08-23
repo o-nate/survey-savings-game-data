@@ -50,9 +50,9 @@ INFLATION_RESULTS_MEASURES = [
 ]
 
 P_VALUE_THRESHOLDS = [0.1, 0.05, 0.01]
-DECIMAL_PLACES = 15
+DECIMAL_PLACES = 2
 
-PERFORMANCE_MEASURES = ["sreal", "early", "excess", "avg_q_%"]
+PERFORMANCE_MEASURES = ["sreal", "early", "excess", PURCHASE_ADAPTATION_NEW_NAME[0]]
 QUANT_INFLATION_MEASURES = [
     "Perception_sensitivity",
     "avg_perception_bias",

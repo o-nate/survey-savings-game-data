@@ -55,7 +55,8 @@ df_questionnaire[
 
 
 # %% [markdown]
-## Overall performance
+## Behavior in the Savings Game
+### Overall performance
 # As can be seen in the graph comparing to the maximum and naïve
 # strategies, the average performance is well below the maximum. Overall, the
 # average performance also does not improve drastically between rounds of the
@@ -65,7 +66,6 @@ calc_opp_costs.plot_savings_and_stock(df_opp_cost, col="phase", palette="tab10")
 
 
 # %% [markdown]
-## Behavior in the Savings Game
 ### Performance measures: Over- and wasteful-stocking and purchase adaptation
 # In the first round across all subjects, the average total savings as a percent of
 # the maximum is 53.6%. Over- and wasteful-stocking account for 19.3% and 8.8% of
@@ -445,7 +445,6 @@ sns.lineplot(
 
 # %% [markdown]
 ## The role of individual characteristics and behavior
-
 df_knowledge = knowledge.create_knowledge_dataframe()
 df_econ_preferences = econ_preferences.create_econ_preferences_dataframe()
 df_individual_char = combine_series(
@@ -463,25 +462,18 @@ df_individual_char["avg_expectation_bias"] = df_individual_char.groupby(
 
 # %% [markdown]
 ### Results of knowledge tasks
-df_knowledge.describe().T
+df_knowledge.describe().T[["mean", "std"]]
 
 # %% [markdown]
 ### Results of economic preference tasks
-df_econ_preferences.describe().T
+df_econ_preferences.describe(percentiles=[0.5]).T[["mean", "std", "min", "50%", "max"]]
 
+# %% [markdown]
+### Correlations between knowledge and performance measures
 data = df_individual_char[
     (df_individual_char["participant.round"] == 1)
     & (df_individual_char["month"] == 120)
 ]
-
-# %% [markdown]
-### Correlations between knowledge and performance measures
-create_pearson_correlation_matrix(
-    data[constants.KNOWLEDGE_MEASURES + constants.PERFORMANCE_MEASURES],
-    p_values=constants.P_VALUE_THRESHOLDS,
-)
-
-# %%
 # * Bonferroni correction
 create_bonferroni_correlation_table(
     data,
@@ -492,13 +484,7 @@ create_bonferroni_correlation_table(
 )
 
 # %% [markdown]
-### Correlations between inconsistencies in economic preferences and performance measures
-create_pearson_correlation_matrix(
-    data[constants.ECON_PREFERENCE_MEASURES + constants.PERFORMANCE_MEASURES],
-    p_values=constants.P_VALUE_THRESHOLDS,
-)
-
-# %%
+### Correlations between economic preferences and performance measures
 # * Bonferroni correction
 create_bonferroni_correlation_table(
     data,
@@ -510,72 +496,95 @@ create_bonferroni_correlation_table(
 
 # %% [markdown]
 ### Correlations between knowledge and inflation bias and sensitivity measures
-
-create_pearson_correlation_matrix(
-    data[constants.KNOWLEDGE_MEASURES + constants.QUANT_INFLATION_MEASURES],
-    p_values=constants.P_VALUE_THRESHOLDS,
-)
-
-# %%
 # * Bonferroni correction
 create_bonferroni_correlation_table(
     data,
     constants.KNOWLEDGE_MEASURES,
     constants.QUANT_INFLATION_MEASURES,
     "pointbiserial",
-    decimal_places=constants.DECIMAL_PLACES,
-)
-
-# %% [markdown]
-### Correlations between inconsistency and inflation bias and sensitivity measures
-create_pearson_correlation_matrix(
-    data[constants.ECON_PREFERENCE_MEASURES + constants.QUANT_INFLATION_MEASURES],
-    p_values=constants.P_VALUE_THRESHOLDS,
-)
-
-# %%
-# * Bonferroni correction
-create_bonferroni_correlation_table(
-    data,
-    constants.ECON_PREFERENCE_MEASURES,
-    constants.QUANT_INFLATION_MEASURES,
-    "pearson",
-    decimal_places=constants.DECIMAL_PLACES,
-)
-
-# %% [markdown]
-### Correlations between knowledge and inflation qualitative inflation measures
-create_pearson_correlation_matrix(
-    data[constants.KNOWLEDGE_MEASURES + constants.QUAL_INFLATION_MEASURES],
-    p_values=constants.P_VALUE_THRESHOLDS,
-)
-
-# %%
-# * Bonferroni correction
-create_bonferroni_correlation_table(
-    data,
-    constants.KNOWLEDGE_MEASURES,
-    constants.QUAL_INFLATION_MEASURES,
-    "pointbiserial",
-    decimal_places=constants.DECIMAL_PLACES,
-)
-
-# %% [markdown]
-### Correlations between knowledge and inflation qualitative inflation measures
-create_pearson_correlation_matrix(
-    data[constants.ECON_PREFERENCE_MEASURES + constants.QUAL_INFLATION_MEASURES],
-    p_values=constants.P_VALUE_THRESHOLDS,
-)
-
-# %%
-# * Bonferroni correction
-create_bonferroni_correlation_table(
-    data,
-    constants.ECON_PREFERENCE_MEASURES,
-    constants.QUAL_INFLATION_MEASURES,
-    "pearson",
     decimal_places=constants.DECIMAL_PLACES,
     filtered_results=False,
+)
+
+# %% [markdown]
+### Correlations between economic preferences and inflation bias and sensitivity measures
+# * Bonferroni correction
+create_bonferroni_correlation_table(
+    data,
+    constants.ECON_PREFERENCE_MEASURES[0:2],
+    constants.QUANT_INFLATION_MEASURES,
+    "pearson",
+    decimal_places=constants.DECIMAL_PLACES,
+)
+# %%
+create_bonferroni_correlation_table(
+    data,
+    constants.ECON_PREFERENCE_MEASURES[2:4],
+    constants.QUANT_INFLATION_MEASURES,
+    "pearson",
+    decimal_places=constants.DECIMAL_PLACES,
+)
+# %%
+create_bonferroni_correlation_table(
+    data,
+    constants.ECON_PREFERENCE_MEASURES[4:6],
+    constants.QUANT_INFLATION_MEASURES,
+    "pearson",
+    decimal_places=constants.DECIMAL_PLACES,
+)
+# %%
+create_bonferroni_correlation_table(
+    data,
+    constants.ECON_PREFERENCE_MEASURES[6:],
+    constants.QUANT_INFLATION_MEASURES,
+    "pearson",
+    decimal_places=constants.DECIMAL_PLACES,
+)
+
+# %% [markdown]
+### Correlations between knowledge and inflation qualitative inflation measures
+# * Bonferroni correction
+create_bonferroni_correlation_table(
+    data,
+    constants.KNOWLEDGE_MEASURES,
+    constants.QUAL_INFLATION_MEASURES,
+    "pointbiserial",
+    decimal_places=constants.DECIMAL_PLACES,
+)
+
+# %% [markdown]
+### Correlations between knowledge and inflation qualitative inflation measures
+# * Bonferroni correction
+create_bonferroni_correlation_table(
+    data,
+    constants.ECON_PREFERENCE_MEASURES[0:2],
+    constants.QUAL_INFLATION_MEASURES,
+    "pearson",
+    decimal_places=constants.DECIMAL_PLACES,
+)
+# %%
+create_bonferroni_correlation_table(
+    data,
+    constants.ECON_PREFERENCE_MEASURES[2:4],
+    constants.QUAL_INFLATION_MEASURES,
+    "pearson",
+    decimal_places=constants.DECIMAL_PLACES,
+)
+# %%
+create_bonferroni_correlation_table(
+    data,
+    constants.ECON_PREFERENCE_MEASURES[4:6],
+    constants.QUAL_INFLATION_MEASURES,
+    "pearson",
+    decimal_places=constants.DECIMAL_PLACES,
+)
+# %%
+create_bonferroni_correlation_table(
+    data,
+    constants.ECON_PREFERENCE_MEASURES[6:],
+    constants.QUAL_INFLATION_MEASURES,
+    "pearson",
+    decimal_places=constants.DECIMAL_PLACES,
 )
 
 
