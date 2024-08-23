@@ -10,7 +10,6 @@ import pandas as pd
 from pingouin import mediation_analysis
 import seaborn as sns
 import statsmodels.formula.api as smf
-from statsmodels.stats.mediation import Mediation
 from statsmodels.iolib.summary2 import summary_col
 
 from scripts.utils import constants
@@ -300,8 +299,48 @@ create_pearson_correlation_matrix(
 
 # %% [markdown]
 ## Real life vs. savings game
-
-### Comparison to trends from CAMME in real life
+### Comparison to trends from surveys in real life
+# Numerous analyses of household surveys on inflation perceptions
+# and expectations demonstrate a positive relationship both between actual (i.e.
+# headline) inflation and perceptons and expectations as well as between perceptions
+# and expectations themselves (Weber et al., 2023; Reiche & Meyler, 2022; Bignon &
+# Gautier, 2022). We observe similar trends in our experimental data as well.
+#
+# Firstly, we find a clear positive correlation between perceptions and
+# expectations as similarly observed by Weber et al. (2023) and Bignon and Gautier
+# (2022). Like Weber et al. (2023) note, the correlation between perceptions and
+# expectations is in fact stronger than the respective correlations with actual
+# inflation.
+#
+# Weber et al. (2023) further note that during the height of the COVID-19
+# pandemic, the dispersion of perception and expectation estimates increased. As
+# can be seen in the histograms of quantitative responses, a similar pattern arises
+# between low- and high-inflation periods. We interpret this parallel as the effect
+# of increased economic uncertainty. To further investigate this possible effect,
+# we compare the share of quantitative responses that are multiples of 5 (Binder, 2017;
+# Gautier & Montornès, 2022; Reiche & Meyler, 2022) as a proxy for uncertain
+# estimates. We graph the time series of actual and quantitative expected inflation
+# with the share of uncertain responses. There are clear spikes in uncertainty
+# during high-inflation phases.
+#
+# Finally, we analyze the qualitative perceptions and estimations. As Andrade et al.
+# (2023) observe, individuals' qualitative estimates are often more accurate than
+# their qualitative ones. As shown in the histogram of responses in low- and
+# high-inflation phases, there are clear shifts to higher qualitative estimates
+# in high-inflation phases.
+create_pearson_correlation_matrix(
+    df_inf_measures[df_inf_measures["participant.round"] == 1][
+        [
+            "Actual",
+            "Upcoming",
+            "Quant Perception",
+            "Quant Expectation",
+            "Qual Perception",
+            "Qual Expectation",
+        ]
+    ],
+    [0.1, 0.05, 0.01],
+)
 
 # %% [markdown]
 #### Figure I – Correlation between perceived and expected inflation (%) <br><br>
@@ -315,6 +354,17 @@ sns.lmplot(
 # %% [markdown]
 #### Tableau 3 – Réponses à la question qualitative sur l’anticipation à un an <br><br>
 df_inf_measures.groupby("inf_phase")[["Qual Expectation"]].value_counts(normalize=True)
+df = df_inf_measures[df_inf_measures["participant.round"] == 1][
+    ["participant.code", "inf_phase", "month", "Qual Perception", "Qual Expectation"]
+].melt(
+    id_vars=["participant.code", "inf_phase", "month"],
+    value_vars=["Qual Perception", "Qual Expectation"],
+    var_name="Estimate Type",
+    value_name="Estimate",
+)
+sns.displot(
+    df, x="Estimate", col="inf_phase", row="Estimate Type", bins=5, common_norm=True
+)
 
 
 # %% [markdown]
@@ -327,8 +377,6 @@ df = df_inf_measures[df_inf_measures["participant.round"] == 1][
     var_name="Estimate Type",
     value_name="Estimate",
 )
-
-# %%
 sns.displot(
     df, x="Estimate", hue="inf_phase", col="Estimate Type", kde=True, common_norm=False
 )
