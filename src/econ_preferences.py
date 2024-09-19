@@ -112,8 +112,10 @@ def count_wisconsin_errors(
 
 
 def create_econ_preferences_dataframe() -> pd.DataFrame:
-    """Generate DataFrame with economic preference ("lossAversion",
-    "riskPreferences", "timePreferences", "wisconsin") measures for each subject
+    """Generate DataFrame with economic preference ("lossAversion", number of coins
+    tossed; "riskPreferences", number safe lotteries chosen; "timePreferences",
+    number of smaller-sooner payments chosen; "wisconsin", number of correct choices
+    and number of perseverative and set-loss errors) measures for each subject
 
     Returns:
         pd.DataFrame: DataFrame with columns [participant.label,
