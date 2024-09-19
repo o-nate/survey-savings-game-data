@@ -1,7 +1,7 @@
 """Statistical analysis of data"""
 
 import logging
-from typing import List, Tuple
+from typing import List, Tuple, Type
 
 from pathlib import Path
 import time
@@ -151,6 +151,49 @@ def create_bonferroni_correlation_table(
     if filtered_results:
         return df_corr[df_corr["p_value"] < alpha_corrected]
     return df_corr
+
+
+def run_forward_selection(
+    data: pd.DataFrame, response: str, categoricals: List[str]
+) -> Type[sm.regression.linear_model.RegressionResultsWrapper]:
+    """Conduct forward selection of feature variables. The algorithm's objective is
+    to maximize R^2.
+
+    Args:
+        data (pd.DataFrame): DataFrame with a column for each feature variable and the
+        dependent variable
+        response (str): Name of the dependent variable
+        categoricals (List[str]): List of column names for variables that are categorical
+        (not continuous)
+
+    Returns:
+        model (sm.regression.linear_model.RegressionResultsWrapper): OLS regression
+        model with maximized R^2
+    """
+    remaining = set(data.columns)
+    remaining.remove(response)
+    selected = []
+    current_score, best_new_score = 0.0, 0.0
+    while remaining and current_score == best_new_score:
+        scores_with_candidates = []
+        for candidate in remaining:
+            if candidate in categoricals:
+                formula = (
+                    f"""{response} ~ {" + ".join(selected + [f"C({candidate})"])} + 1"""
+                )
+            else:
+                formula = f"""{response} ~ {" + ".join(selected + [candidate])} + 1"""
+            score = smf.ols(formula, data).fit().rsquared_adj
+            scores_with_candidates.append((score, candidate))
+        scores_with_candidates.sort()
+        best_new_score, best_candidate = scores_with_candidates.pop()
+        if current_score < best_new_score:
+            remaining.remove(best_candidate)
+            selected.append(best_candidate)
+            current_score = best_new_score
+    formula = "{} ~ {} + 1".format(response, " + ".join(selected))
+    model = smf.ols(formula, data).fit()
+    return model
 
 
 def main() -> None:

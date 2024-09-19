@@ -26,7 +26,7 @@ DECISION_QUANTITY = "cum_decision"
 WINDOW = 3
 
 PERFORMANCE_MEASURES_OLD_NAMES = ["sreal_%", "early_%", "excess_%"]
-PERFORMANCE_MEASURES_NEW_NAMES = ["Total savings", "Over-stocking", "Wasteful-stocking"]
+PERFORMANCE_MEASURES_NEW_NAMES = ["Savings", "Over-stocking", "Wasteful-stocking"]
 PURCHASE_ADAPTATION_OLD_NAME = ["avg_q_%"]
 PURCHASE_ADAPTATION_NEW_NAME = ["Purchase adaptation"]
 
@@ -39,6 +39,7 @@ INFLATION_RESULTS_MEASURES = [
     "Qual Expectation_high",
     "Avg Qual Perception Accuracy",
     "Avg Qual Expectation Accuracy",
+    "Average Uncertain Expectation",
     # "Perception_bias",
     "Perception_bias_high",
     "Perception_bias_low",
@@ -52,7 +53,10 @@ INFLATION_RESULTS_MEASURES = [
 P_VALUE_THRESHOLDS = [0.1, 0.05, 0.01]
 DECIMAL_PLACES = 2
 
-PERFORMANCE_MEASURES = ["sreal", "early", "excess", PURCHASE_ADAPTATION_NEW_NAME[0]]
+PERFORMANCE_MEASURES = PERFORMANCE_MEASURES_OLD_NAMES + [
+    PURCHASE_ADAPTATION_OLD_NAME[0]
+]
+
 QUANT_INFLATION_MEASURES = [
     "Perception_sensitivity",
     "avg_perception_bias",
@@ -89,6 +93,26 @@ INDIVIDUAL_CHARACTERISTICS = [
     "lossAversion_switches",
     "timePreferences_choice_count",
     "timePreferences_switches",
+]
+
+# * Forward selection feature variables
+FEATURES = [
+    "financial_literacy",
+    "numeracy",
+    "compound",
+    "wisconsin_choice_count",
+    "riskPreferences_choice_count",
+    # "riskPreferences_switches",
+    "lossAversion_choice_count",
+    # "lossAversion_switches",
+    "timePreferences_choice_count",
+    # "timePreferences_switches",
+    "age",
+    "gender",
+    "educationLevel",
+    "financialStatusIncome",
+    "financialStatusSavings_1",
+    "n_switches",
 ]
 
 # * Mediation analysis dummies

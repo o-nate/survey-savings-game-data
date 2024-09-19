@@ -27,6 +27,7 @@ from src.preprocess import final_df_dict
 from src.stats_analysis import (
     create_bonferroni_correlation_table,
     create_pearson_correlation_matrix,
+    run_forward_selection,
 )
 from src.utils.helpers import combine_series
 from src.utils.logging_helpers import set_external_module_log_levels
@@ -690,7 +691,7 @@ _, df_performance_pivot = intervention.create_learning_effect_table(
 )
 df_performance_pivot.rename(
     columns={
-        "Change in sreal": "diff_performance",
+        "Change in sreal_%": "diff_performance",
         "Change in Avg Qual Expectation Accuracy": "diff_avg_qual_exp",
         "Change in Avg Qual Perception Accuracy": "diff_avg_qual_perc",
         "Change in Average Uncertain Expectation": "diff_avg_uncertainty",
@@ -857,6 +858,83 @@ results = summary_col(
 )
 results
 
+# %% [markdown]
+##### With forward selection
+df_qs = df_questionnaire.copy()
+df_qs.columns = [c.replace("Questionnaire.1.player.", "") for c in df_qs.columns]
+# %%
+regressions = {}
+
+df_forward = df_inf_adapt[df_inf_adapt["month"] == 120].copy()
+df_forward["n_switches"] = df_forward[
+    [c for c in df_forward.columns if "_switches" in c]
+].sum(axis=1)
+df_forward = df_forward.merge(
+    df_qs[["participant.label"] + constants.FEATURES[-6:-1]], how="left"
+)
+
+# %%
+data = df_forward[df_forward["phase"] == "pre"]
+data.rename(
+    columns={
+        "Avg Qual Expectation Accuracy": "Avg_Qual_Expectation_Accuracy",
+        "Avg Qual Perception Accuracy": "Avg_Qual_Perception_Accuracy",
+        "sreal_%": "sreal_percent",
+        "early_%": "early_percent",
+        "excess_%": "excess_percent",
+    },
+    inplace=True,
+)
+data = data[["sreal_percent", "early_percent", "excess_percent"] + constants.FEATURES]
+data.rename(
+    columns={
+        "Avg Qual Expectation Accuracy": "Avg_Qual_Expectation_Accuracy",
+        "Avg Qual Perception Accuracy": "Avg_Qual_Perception_Accuracy",
+        "sreal_%": "sreal_percent",
+        "early_%": "early_percent",
+        "excess_%": "excess_percent",
+    },
+    inplace=True,
+)
+for measure in ["sreal_percent", "early_percent", "excess_percent"]:
+    ## Remove performance measures not needed for current regression
+    not_measures = [
+        m
+        for m in ["sreal_percent", "early_percent", "excess_percent"]
+        if m is not measure
+    ]
+    print([c for c in data.columns if c not in not_measures])
+    regressions[measure] = run_forward_selection(
+        data[[c for c in data.columns if c not in not_measures]],
+        response=measure,
+        categoricals=["compound", "numeracy", "financial_literacy"],
+    )
+results = summary_col(
+    results=list(regressions.values()),
+    stars=True,
+    model_names=list(regressions.keys()),
+)
+results
+
+
+# %% [markdown]
+#### With treatment
+regressions = {}
+
+model = smf.ols(
+    formula="""diff_performance ~ C(treatment) / \
+            (financial_literacy + numeracy + compound + wisconsin_choice_count \
+            + wisconsin_SE + wisconsin_PE + riskPreferences_choice_count \
+                + riskPreferences_switches + lossAversion_choice_count \
+                    + lossAversion_switches + timePreferences_choice_count \
+                        + timePreferences_switches)""",
+    data=df_inf_adapt[df_inf_adapt["month"] == 120],
+)
+results = model.fit()
+results.summary()
+
+# %% [markdown]
+#### Mediation analysis
 # * Replace treatment with dummy categories
 criteria = [
     df_inf_adapt["treatment"] == "Intervention 1",
@@ -915,6 +993,7 @@ mediation_analysis(
     x=constants.MEDIATION_INTERVENTION_2,
     m=[
         "diff_avg_qual_perc",
+        "diff_avg_qual_exp",
         "diff_avg_uncertainty",
         "diff_perception_sensitivity",
         "diff_perception_bias",
