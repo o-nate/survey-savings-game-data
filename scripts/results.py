@@ -51,7 +51,7 @@ df_questionnaire[
         for m in df_questionnaire
         if any(qm in m for qm in constants.QUESTIONNAIRE_MEASURES)
     ]
-].describe().T
+].describe().T[["mean", "std", "min", "50%", "max"]]
 
 
 # %% [markdown]
@@ -103,7 +103,7 @@ df_measures.rename(
 )
 df_measures[(df_measures["month"] == 120) & (df_measures["phase"] == "pre")].describe()[
     constants.PERFORMANCE_MEASURES_NEW_NAMES + constants.PURCHASE_ADAPTATION_NEW_NAME
-].T
+].T[["mean", "std", "min", "50%", "max"]]
 
 # %%
 df_pivot_measures = df_measures[
@@ -205,6 +205,18 @@ df_inf_measures = df_inf_measures.merge(
     df_measures[[m for m in df_measures.columns if "participant.inflation" not in m]],
     how="left",
 )
+df_inf_measures.rename(
+    columns={
+        k: v
+        for k, v in zip(
+            constants.PERFORMANCE_MEASURES_NEW_NAMES
+            + constants.PURCHASE_ADAPTATION_NEW_NAME,
+            constants.PERFORMANCE_MEASURES_OLD_NAMES
+            + constants.PURCHASE_ADAPTATION_OLD_NAME,
+        )
+    },
+    inplace=True,
+)
 
 # %%
 ## Separate inflation measures by high- and low-inflation
@@ -277,9 +289,17 @@ df_accuracy.rename(
 
 df_inf_measures = df_inf_measures.merge(df_accuracy.reset_index(), how="left")
 
+# * Add uncertainty measure
+df_inf_measures["Uncertain Expectation"] = process_survey.include_uncertainty_measure(
+    df_inf_measures, "Quant Expectation", 1, 0
+)
+df_inf_measures["Average Uncertain Expectation"] = df_inf_measures.groupby(
+    "participant.code"
+)["Uncertain Expectation"].transform("mean")
+
 df_inf_measures[df_inf_measures["participant.round"] == 1].describe()[
     constants.INFLATION_RESULTS_MEASURES[2:]
-].T
+].T[["mean", "std", "min", "50%", "max"]]
 
 # %%
 create_pearson_correlation_matrix(
@@ -289,7 +309,7 @@ create_pearson_correlation_matrix(
         constants.INFLATION_RESULTS_MEASURES[2:]
         + [
             "avg_q",
-            constants.PURCHASE_ADAPTATION_NEW_NAME[0],
+            constants.PURCHASE_ADAPTATION_OLD_NAME[0],
             "sreal",
         ]
     ],
@@ -328,6 +348,18 @@ create_pearson_correlation_matrix(
 # their qualitative ones. As shown in the histogram of responses in low- and
 # high-inflation phases, there are clear shifts to higher qualitative estimates
 # in high-inflation phases.
+
+# %% [markdown]
+#### Figure I – Correlation between perceived and expected inflation (%) <br><br>
+sns.lmplot(
+    df_inf_measures[df_inf_measures["participant.round"] == 1],
+    x="Quant Perception",
+    y="Quant Expectation",
+    hue="participant.round",
+)
+
+# %%[markdown]
+#### Correlation matrix of inflation measures versus actual inflation
 create_pearson_correlation_matrix(
     df_inf_measures[df_inf_measures["participant.round"] == 1][
         [
@@ -340,15 +372,6 @@ create_pearson_correlation_matrix(
         ]
     ],
     [0.1, 0.05, 0.01],
-)
-
-# %% [markdown]
-#### Figure I – Correlation between perceived and expected inflation (%) <br><br>
-sns.lmplot(
-    df_inf_measures[df_inf_measures["participant.round"] == 1],
-    x="Quant Perception",
-    y="Quant Expectation",
-    hue="participant.round",
 )
 
 # %% [markdown]
@@ -406,12 +429,6 @@ g = sns.relplot(
 
 # %%
 # Figure V – Change in estimation uncertainty (% of responses)
-df_inf_measures["Uncertain Expectation"] = process_survey.include_uncertainty_measure(
-    df_inf_measures, "Quant Expectation", 1, 0
-)
-df_inf_measures["Average Uncertain Expectation"] = df_inf_measures.groupby(
-    "participant.code"
-)["Uncertain Expectation"].transform("mean")
 df_uncertain = (
     pd.pivot_table(
         df_inf_measures[
@@ -442,6 +459,7 @@ sns.lineplot(
     y="Value",
     hue="Measure",
 )
+plt.legend(loc="upper left")
 
 # %% [markdown]
 ## The role of individual characteristics and behavior
@@ -503,7 +521,7 @@ create_bonferroni_correlation_table(
     constants.QUANT_INFLATION_MEASURES,
     "pointbiserial",
     decimal_places=constants.DECIMAL_PLACES,
-    filtered_results=False,
+    filtered_results=True,
 )
 
 # %% [markdown]
@@ -594,7 +612,7 @@ data = df_individual_char[df_individual_char["month"] == 120]
 
 # %% [markdown]
 ### Change in performance between first and second session (Learning effect)
-df_learning_effect = intervention.create_learning_effect_table(
+df_learning_effect, df_learning_pivot = intervention.create_learning_effect_table(
     data, constants.PERFORMANCE_MEASURES, constants.P_VALUE_THRESHOLDS
 )
 df_learning_effect
@@ -610,36 +628,8 @@ df_treatments = intervention.create_diff_in_diff_table(
 df_treatments
 
 # %% [markdown]
-### Regression of performance
-# `totale, over-stocking, excess, biais_perc, biais_antic, sens_perc ~
-# avant/après * intervention_1|intervention_2|contrôle`
-data = df_individual_char[df_individual_char["month"] == 120]
-
-regressions = {}
-
-for m in constants.PERFORMANCE_MEASURES[:-1] + constants.QUANT_INFLATION_MEASURES:
-    model = smf.ols(
-        formula=f"{m} ~ C(treatment) * C(phase)",  # No intercept (-1)
-        data=data,
-    )
-    regressions[m] = model.fit()
-results = summary_col(
-    results=list(regressions.values()),
-    stars=True,
-    model_names=list(regressions.keys()),
-)
-
-# %%
-results
-
-
-# %% [markdown]
-### Les participants prennent-ils plus en compte l’inflation pour s’adapter ?
-#
-# `Régression d’adaptation (1-12, 12-24, 24-36, 36-48) ~ inflation réelle +
-# perception_finaleDePeriode + anticipation_débutDePeriode + avant|après +
-# intervention_1|intervention_2|contrôle`
-
+## Regressions
+# * Pre-processing
 # * Get average quantity purchased in each 12-month window
 df_adapt = df_opp_cost.copy()
 df_adapt["avg_purchase"] = df_adapt.groupby("participant.code")["decision"].transform(
@@ -668,8 +658,6 @@ df_inf_adapt.rename(
 
 # * Replace qualitative estimates with boolean for stay the same/decrease or increase
 # * (see Andrade et al. (2023))
-# condition = [df_inf_adapt["current_qual_perception"] <= 0]
-# choice = [0]
 df_inf_adapt["current_qual_perception"] = np.where(
     df_inf_adapt["current_qual_perception"] <= 0, 0, 1
 )
@@ -693,54 +681,6 @@ assert (
     df_inf_adapt.shape[0] == df_individual_char.shape[0]
     and df_inf_adapt.shape[1] == df_individual_char.shape[1] + 3
 )
-
-# %%
-regressions = {}
-
-for m in constants.ADAPTATION_MONTHS:
-    model = smf.ols(
-        formula="""avg_purchase ~ Actual + current_perception + previous_expectation \
-        + C(treatment) * C(phase)""",
-        data=df_inf_adapt[df_inf_adapt["month"] == m],
-    )
-    regressions[f"Month {m}"] = model.fit()
-results = summary_col(
-    results=list(regressions.values()),
-    stars=True,
-    model_names=list(regressions.keys()),
-)
-
-# %%
-results
-
-# %% [markdown]
-### Regression with qualitative estimates
-regressions = {}
-
-for m in constants.ADAPTATION_MONTHS:
-    model = smf.ols(
-        formula="""avg_purchase ~ Actual + current_qual_perception + \
-            previous_qual_expectation + C(treatment) * C(phase)""",
-        data=df_inf_adapt[df_inf_adapt["month"] == m],
-    )
-    regressions[f"Month {m}"] = model.fit()
-results = summary_col(
-    results=list(regressions.values()),
-    stars=True,
-    model_names=list(regressions.keys()),
-)
-
-# %%
-results
-
-
-# %% [markdown]
-### Généralité de l’efficacité
-#
-# `Régression diff_performance ~ intervention_1|intervention_2|contrôle *
-# (toutes les caractéristiques)`
-#
-# Croiser une à une
 _, df_performance_pivot = intervention.create_learning_effect_table(
     df_inf_adapt,
     constants.PERFORMANCE_MEASURES
@@ -761,13 +701,12 @@ df_performance_pivot.rename(
     },
     inplace=True,
 )
-
-# %%
 df_performance_pivot = df_performance_pivot[
     [
         "participant.label",
         "diff_performance",
         "diff_avg_qual_perc",
+        "diff_avg_qual_exp",
         "diff_avg_uncertainty",
         "diff_perception_sensitivity",
         "diff_perception_bias",
@@ -775,16 +714,12 @@ df_performance_pivot = df_performance_pivot[
         "diff_expectation_bias",
     ]
 ]
-
-
-# %%
 df_performance_pivot.columns = df_performance_pivot.columns.droplevel()
-
-# %%
 df_performance_pivot.columns = [
     "participant.label",
     "diff_performance",
     "diff_avg_qual_perc",
+    "diff_avg_qual_exp",
     "diff_avg_uncertainty",
     "diff_perception_sensitivity",
     "diff_perception_bias",
@@ -792,68 +727,31 @@ df_performance_pivot.columns = [
     "diff_expectation_bias",
 ]
 
-# %%
 df_inf_adapt = df_inf_adapt.merge(df_performance_pivot, how="left")
 
 # %% [markdown]
-### Regression with qualitative estimates
-regressions = {}
-
-model = smf.ols(
-    formula="""diff_performance ~ C(treatment) / \
-            (financial_literacy + numeracy + compound + wisconsin_choice_count \
-                + riskPreferences_choice_count + riskPreferences_switches \
-                    + lossAversion_choice_count + lossAversion_switches \
-                        + timePreferences_choice_count + timePreferences_switches)""",
-    data=df_inf_adapt[df_inf_adapt["month"] == 120],
-)
-results = model.fit()
-
-# %%
-results.summary()
-
-# %% [markdown]
-#### Analyse de médiation
-#
-# `Intervention → perception et anticipation → performance`
-# `Intervention → performance`
+### Do subjects account for inflation in their purchase adaptation?
+#### Without treatment (only round 1)
+# Adaptation (1-12, 12-24, 24-36, 36-48) ~ actual inflation + perception_endOfPhase +
+# expectation_startOfPhase
 df_inf_adapt.rename(
-    columns={"Average Uncertain Expectation": "avg_uncertainty"}, inplace=True
+    columns={
+        "Uncertain Expectation": "uncertainty",
+    },
+    inplace=True,
 )
-data = df_inf_adapt[df_inf_adapt["month"] == 120]
 
 regressions = {}
-change_measures = [
-    "diff_performance",
-    "diff_avg_qual_perc",
-    "diff_avg_uncertainty",
-    "diff_perception_sensitivity",
-    "diff_perception_bias",
-    "diff_expectation_sensitivity",
-    "diff_expectation_bias",
-]
-for m in change_measures:
+
+for m in constants.ADAPTATION_MONTHS:
     model = smf.ols(
-        formula=f"""{m} ~ C(treatment)""",
-        data=data,
+        formula="""avg_purchase ~ Actual + current_perception + previous_expectation \
+            + current_qual_perception + previous_qual_expectation + C(uncertainty)""",
+        data=df_inf_adapt[
+            (df_inf_adapt["phase"] == "pre") & (df_inf_adapt["month"] == m)
+        ],
     )
-    regressions[m] = model.fit()
-
-outcome_model = smf.ols(
-    formula="""diff_performance ~ C(treatment) + diff_avg_qual_perc + \
-        diff_avg_uncertainty + diff_perception_sensitivity + diff_perception_bias +\
-            diff_expectation_sensitivity + diff_expectation_bias
-        """,
-    data=data,
-)
-regressions["outcome_model"] = outcome_model.fit()
-
-mediator_model = smf.ols(
-    formula="""diff_avg_uncertainty ~ C(treatment)""",
-    data=data,
-)
-regressions["mediator_model"] = mediator_model.fit()
-
+    regressions[f"Month {m}"] = model.fit()
 results = summary_col(
     results=list(regressions.values()),
     stars=True,
@@ -863,7 +761,102 @@ results = summary_col(
 # %%
 results
 
+# %% [markdown]
+#### With treatment
+# Adaptation (1-12, 12-24, 24-36, 36-48) ~ actual inflation + perception_endOfPhase +
+# expectation_startOfPhase + pre|post + treatment
+
+regressions = {}
+
+for m in constants.ADAPTATION_MONTHS:
+    model = smf.ols(
+        formula="""avg_purchase ~ Actual + current_perception + previous_expectation + \
+            + current_qual_perception + previous_qual_expectation + C(uncertainty) + \
+                C(treatment) * C(phase)""",
+        data=df_inf_adapt[df_inf_adapt["month"] == m],
+    )
+    regressions[f"Month {m}"] = model.fit()
+results = summary_col(
+    results=list(regressions.values()),
+    stars=True,
+    model_names=list(regressions.keys()),
+)
+
 # %%
+results
+
+# %% [markdown]
+### Regressions of performance measures
+data = df_inf_adapt[df_inf_adapt["month"] == 120]
+data.rename(
+    columns={
+        "Avg Qual Expectation Accuracy": "Avg_Qual_Expectation_Accuracy",
+        "Avg Qual Perception Accuracy": "Avg_Qual_Perception_Accuracy",
+        "sreal_%": "sreal_percent",
+        "early_%": "early_percent",
+        "excess_%": "excess_percent",
+    },
+    inplace=True,
+)
+
+regressions = {}
+
+for m in [
+    "sreal_percent",
+    "early_percent",
+    "excess_percent",
+] + constants.QUANT_INFLATION_MEASURES:
+    model = smf.ols(
+        formula=f"{m} ~ C(treatment) * C(phase)",
+        data=data,
+    )
+    regressions[m] = model.fit()
+results = summary_col(
+    results=list(regressions.values()),
+    stars=True,
+    model_names=list(regressions.keys()),
+)
+
+# %%
+results
+
+# %% [markdown]
+### Impact of individual characteristics
+#### From round 1
+regressions = {}
+data = df_inf_adapt[(df_inf_adapt["phase"] == "pre") & (df_inf_adapt["month"] == 120)]
+data.rename(
+    columns={
+        "Avg Qual Expectation Accuracy": "Avg_Qual_Expectation_Accuracy",
+        "Avg Qual Perception Accuracy": "Avg_Qual_Perception_Accuracy",
+        "sreal_%": "sreal_percent",
+        "early_%": "early_percent",
+        "excess_%": "excess_percent",
+    },
+    inplace=True,
+)
+
+for m in [
+    "sreal_percent",
+    "early_percent",
+    "excess_percent",
+]:
+    model = smf.ols(
+        formula=f"{m} ~ financial_literacy + numeracy + compound + wisconsin_choice_count \
+            + wisconsin_SE + wisconsin_PE + riskPreferences_choice_count \
+                + riskPreferences_switches + lossAversion_choice_count \
+                    + lossAversion_switches + timePreferences_choice_count \
+                        + timePreferences_switches",
+        data=data,
+    )
+    regressions[m] = model.fit()
+results = summary_col(
+    results=list(regressions.values()),
+    stars=True,
+    model_names=list(regressions.keys()),
+)
+results
+
 # * Replace treatment with dummy categories
 criteria = [
     df_inf_adapt["treatment"] == "Intervention 1",
@@ -877,7 +870,6 @@ df_inf_adapt["intervention_1"] = np.where(
 df_inf_adapt["intervention_2"] = np.where(
     df_inf_adapt["treatment"] == "Intervention 2", 1, 0
 )
-# %%
 data = df_inf_adapt[df_inf_adapt["month"] == 120]
 print(constants.MEDIATION_CONTROL)
 mediation_analysis(
@@ -885,6 +877,7 @@ mediation_analysis(
     x=constants.MEDIATION_CONTROL,
     m=[
         "diff_avg_qual_perc",
+        "diff_avg_qual_exp",
         "diff_avg_uncertainty",
         "diff_perception_sensitivity",
         "diff_perception_bias",
@@ -903,6 +896,7 @@ mediation_analysis(
     x=constants.MEDIATION_INTERVENTION_1,
     m=[
         "diff_avg_qual_perc",
+        "diff_avg_qual_exp",
         "diff_avg_uncertainty",
         "diff_perception_sensitivity",
         "diff_perception_bias",
@@ -942,6 +936,6 @@ mediation_analysis(
 # expectation sensitivity statistically significantly, but the indirect effect this
 # has on performance is not signficant.
 # - <b><u>Intervention 2</u></b> improves performance through partial mediation,
-# improving performance directly as well as through the mediating factor of the
-# change in average uncertainty and expectation sensitivity, but the indirect
-# effect these mediators on performance is not signficant.
+# improving performance directly as well as through the mediating factor of
+# expectation sensitivity, but the indirect effect these mediators on performance
+# is not signficant.
