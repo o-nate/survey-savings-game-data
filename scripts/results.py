@@ -787,9 +787,10 @@ regressions = {}
 
 for m in constants.ADAPTATION_MONTHS:
     model = smf.ols(
-        formula="""avg_purchase ~ Actual + current_perception + previous_expectation \
-            + current_qual_perception + previous_qual_expectation + C(uncertainty) \
-                + C(treatment) * C(phase)""",
+        formula="""avg_purchase ~ Actual  \
+            + C(uncertainty) \
+                + C(treatment) * (C(phase)+ current_perception + previous_expectation \
+                    + current_qual_perception + previous_qual_expectation)""",
         data=df_inf_adapt[df_inf_adapt["month"] == m],
     )
     regressions[f"Month {m}"] = model.fit()
