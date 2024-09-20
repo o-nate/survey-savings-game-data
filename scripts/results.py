@@ -28,6 +28,7 @@ from src.stats_analysis import (
     create_bonferroni_correlation_table,
     create_pearson_correlation_matrix,
     run_forward_selection,
+    run_treatment_forward_selection,
 )
 from src.utils.helpers import combine_series
 from src.utils.logging_helpers import set_external_module_log_levels
@@ -648,6 +649,9 @@ df_inf_adapt["previous_expectation"] = df_inf_adapt.groupby("participant.code")[
 df_inf_adapt["previous_qual_expectation"] = df_inf_adapt.groupby("participant.code")[
     "Qual Expectation"
 ].shift(1)
+df_inf_adapt["previous_qual_expectation_accuracy"] = df_inf_adapt.groupby(
+    "participant.code"
+)["Qual Expectation"].shift(1)
 
 df_inf_adapt.rename(
     columns={
@@ -677,10 +681,15 @@ df_inf_adapt["previous_qual_expectation"] = pd.Categorical(
     ordered=True,
     categories=[0, 1],
 )
+df_inf_adapt["previous_qual_expectation_accuracy"] = pd.Categorical(
+    df_inf_adapt["previous_qual_expectation_accuracy"],
+    ordered=True,
+    categories=[0, 1],
+)
 
 assert (
     df_inf_adapt.shape[0] == df_individual_char.shape[0]
-    and df_inf_adapt.shape[1] == df_individual_char.shape[1] + 3
+    and df_inf_adapt.shape[1] == df_individual_char.shape[1] + 4
 )
 _, df_performance_pivot = intervention.create_learning_effect_table(
     df_inf_adapt,
@@ -744,6 +753,9 @@ df_inf_adapt = df_inf_adapt.merge(df_performance_pivot, how="left")
 df_inf_adapt.rename(
     columns={
         "Uncertain Expectation": "uncertainty",
+        "Avg Qual Perception Accuracy": "Avg_Qual_Perception_Accuracy",
+        "Avg Qual Expectation Accuracy": "Avg_Qual_Expectation_Accuracy",
+        "Qual Perception Accuracy": "Qual_Perception_Accuracy",
     },
     inplace=True,
 )
@@ -764,8 +776,6 @@ results = summary_col(
     stars=True,
     model_names=list(regressions.keys()),
 )
-
-# %%
 results
 
 # %% [markdown]
@@ -777,9 +787,9 @@ regressions = {}
 
 for m in constants.ADAPTATION_MONTHS:
     model = smf.ols(
-        formula="""avg_purchase ~ Actual + current_perception + previous_expectation + \
-            + current_qual_perception + previous_qual_expectation + C(uncertainty) + \
-                C(treatment) * C(phase)""",
+        formula="""avg_purchase ~ Actual + current_perception + previous_expectation \
+            + current_qual_perception + previous_qual_expectation + C(uncertainty) \
+                + C(treatment) * C(phase)""",
         data=df_inf_adapt[df_inf_adapt["month"] == m],
     )
     regressions[f"Month {m}"] = model.fit()
@@ -788,8 +798,6 @@ results = summary_col(
     stars=True,
     model_names=list(regressions.keys()),
 )
-
-# %%
 results
 
 # %% [markdown]
@@ -812,7 +820,14 @@ for m in [
     "diff_performance",
     "diff_early",
     "diff_excess",
-] + constants.QUANT_INFLATION_MEASURES:
+    "diff_avg_qual_perc",
+    "diff_avg_qual_exp",
+    "diff_avg_uncertainty",
+    "diff_perception_sensitivity",
+    "diff_perception_bias",
+    "diff_expectation_sensitivity",
+    "diff_expectation_bias",
+]:
     model = smf.ols(
         formula=f"{m} ~ C(treatment)",
         data=data,
@@ -827,44 +842,10 @@ results
 
 # %% [markdown]
 ### Impact of individual characteristics
-#### From round 1
-regressions = {}
-data = df_inf_adapt[(df_inf_adapt["phase"] == "pre") & (df_inf_adapt["month"] == 120)]
-data.rename(
-    columns={
-        "sreal_%": "sreal_percent",
-        "early_%": "early_percent",
-        "excess_%": "excess_percent",
-    },
-    inplace=True,
-)
-
-for m in [
-    "sreal_percent",
-    "early_percent",
-    "excess_percent",
-]:
-    model = smf.ols(
-        formula=f"{m} ~ financial_literacy + numeracy + compound + wisconsin_choice_count \
-            + wisconsin_SE + wisconsin_PE + riskPreferences_choice_count \
-                + riskPreferences_switches + lossAversion_choice_count \
-                    + lossAversion_switches + timePreferences_choice_count \
-                        + timePreferences_switches",
-        data=data,
-    )
-    regressions[m] = model.fit()
-results = summary_col(
-    results=list(regressions.values()),
-    stars=True,
-    model_names=list(regressions.keys()),
-)
-results
-
-# %% [markdown]
-##### With forward selection
+#### From round 1 with forward selection
 df_qs = df_questionnaire.copy()
 df_qs.columns = [c.replace("Questionnaire.1.player.", "") for c in df_qs.columns]
-# %%
+
 regressions = {}
 
 df_forward = df_inf_adapt[df_inf_adapt["month"] == 120].copy()
@@ -875,7 +856,6 @@ df_forward = df_forward.merge(
     df_qs[["participant.label"] + constants.FEATURES[-6:-1]], how="left"
 )
 
-# %%
 data = df_forward[df_forward["phase"] == "pre"]
 data.rename(
     columns={
@@ -905,7 +885,6 @@ for measure in ["sreal_percent", "early_percent", "excess_percent"]:
         for m in ["sreal_percent", "early_percent", "excess_percent"]
         if m is not measure
     ]
-    print([c for c in data.columns if c not in not_measures])
     regressions[measure] = run_forward_selection(
         data[[c for c in data.columns if c not in not_measures]],
         response=measure,
@@ -918,22 +897,30 @@ results = summary_col(
 )
 results
 
-
 # %% [markdown]
-#### With treatment
+##### Forward selection
 regressions = {}
-
-model = smf.ols(
-    formula="""diff_performance ~ C(treatment) / \
-            (financial_literacy + numeracy + compound + wisconsin_choice_count \
-            + wisconsin_SE + wisconsin_PE + riskPreferences_choice_count \
-                + riskPreferences_switches + lossAversion_choice_count \
-                    + lossAversion_switches + timePreferences_choice_count \
-                        + timePreferences_switches)""",
-    data=df_inf_adapt[df_inf_adapt["month"] == 120],
+data = df_forward[df_forward["phase"] == "post"].copy()
+data = data[
+    ["treatment", "diff_performance", "diff_early", "diff_excess"] + constants.FEATURES
+]
+for measure in ["diff_performance", "diff_early", "diff_excess"]:
+    ## Remove performance measures not needed for current regression
+    not_measures = [
+        m for m in ["diff_performance", "diff_early", "diff_excess"] if m is not measure
+    ]
+    regressions[measure] = run_treatment_forward_selection(
+        data[[c for c in data.columns if c not in not_measures]],
+        response=measure,
+        treatment="treatment",
+        categoricals=["compound", "numeracy", "financial_literacy"],
+    )
+results = summary_col(
+    results=list(regressions.values()),
+    stars=True,
+    model_names=list(regressions.keys()),
 )
-results = model.fit()
-results.summary()
+results
 
 # %% [markdown]
 #### Mediation analysis
