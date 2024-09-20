@@ -692,6 +692,8 @@ _, df_performance_pivot = intervention.create_learning_effect_table(
 df_performance_pivot.rename(
     columns={
         "Change in sreal_%": "diff_performance",
+        "Change in early_%": "diff_early",
+        "Change in excess_%": "diff_excess",
         "Change in Avg Qual Expectation Accuracy": "diff_avg_qual_exp",
         "Change in Avg Qual Perception Accuracy": "diff_avg_qual_perc",
         "Change in Average Uncertain Expectation": "diff_avg_uncertainty",
@@ -706,6 +708,8 @@ df_performance_pivot = df_performance_pivot[
     [
         "participant.label",
         "diff_performance",
+        "diff_early",
+        "diff_excess",
         "diff_avg_qual_perc",
         "diff_avg_qual_exp",
         "diff_avg_uncertainty",
@@ -719,6 +723,8 @@ df_performance_pivot.columns = df_performance_pivot.columns.droplevel()
 df_performance_pivot.columns = [
     "participant.label",
     "diff_performance",
+    "diff_early",
+    "diff_excess",
     "diff_avg_qual_perc",
     "diff_avg_qual_exp",
     "diff_avg_uncertainty",
@@ -803,12 +809,12 @@ data.rename(
 regressions = {}
 
 for m in [
-    "sreal_percent",
-    "early_percent",
-    "excess_percent",
+    "diff_performance",
+    "diff_early",
+    "diff_excess",
 ] + constants.QUANT_INFLATION_MEASURES:
     model = smf.ols(
-        formula=f"{m} ~ C(treatment) * C(phase)",
+        formula=f"{m} ~ C(treatment)",
         data=data,
     )
     regressions[m] = model.fit()
@@ -817,8 +823,6 @@ results = summary_col(
     stars=True,
     model_names=list(regressions.keys()),
 )
-
-# %%
 results
 
 # %% [markdown]
@@ -828,8 +832,6 @@ regressions = {}
 data = df_inf_adapt[(df_inf_adapt["phase"] == "pre") & (df_inf_adapt["month"] == 120)]
 data.rename(
     columns={
-        "Avg Qual Expectation Accuracy": "Avg_Qual_Expectation_Accuracy",
-        "Avg Qual Perception Accuracy": "Avg_Qual_Perception_Accuracy",
         "sreal_%": "sreal_percent",
         "early_%": "early_percent",
         "excess_%": "excess_percent",
