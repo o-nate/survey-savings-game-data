@@ -59,23 +59,12 @@ df_questionnaire[
 # %% [markdown]
 ## Behavior in the Savings Game
 ### Overall performance
-# As can be seen in the graph comparing to the maximum and naïve
-# strategies, the average performance is well below the maximum. Overall, the
-# average performance also does not improve drastically between rounds of the
-# Savings Game when taken across all treatment group together.
 df_opp_cost = calc_opp_costs.calculate_opportunity_costs()
 calc_opp_costs.plot_savings_and_stock(df_opp_cost, col="phase", palette="tab10")
 
 
 # %% [markdown]
 ### Performance measures: Over- and wasteful-stocking and purchase adaptation
-# In the first round across all subjects, the average total savings as a percent of
-# the maximum is 53.6%. Over- and wasteful-stocking account for 19.3% and 8.8% of
-# the maximum. As can be seen in the boxplot, however, the mean wasteful-stocking
-# measure is greatly skewed by outliers. Finally, average purchase adaptation (as a
-# percentage of the cumulative quantity purchased leading up to the inflation
-# phase-change) is 9.2%, however also with significant outliers; the median is 3.1%.
-
 df_measures = discontinuity.purchase_discontinuity(
     df_opp_cost, constants.DECISION_QUANTITY, constants.WINDOW
 )
@@ -143,36 +132,6 @@ fig = sns.boxplot(
 # %% [markdown]
 ## Expectation and perception of inflation
 ### Quality of inflation expectations and perceptions and performance
-#
-# As can be observed in the graph of perceived and expected inflation, subjects
-# generally track inflation; however, their quantitative estimates are inaccurate.
-# In other words, subjects may have more accurate qualitative estimates than
-# quantitative. They demonstrate signficant biases in both low- and high-inflation
-# phases, overestimating in low inflation and underestimating in high inflation.
-# They sensitivity to changes in inflation, though, is positive. Further, their
-# qualitative estimates, though, demonstrate greater accuracy, with subjects
-# correctly perceiving the change in prices 78.2% of the time and expecting the change
-# in prices 50.4%.
-#
-# That said, we find that perception and expectation sensitivity correlated positively
-# with overall performance. Low-inflation perception and expectation biases correlate
-# negatively with overall performance. Interestingly, high-inflation perception
-# and expectation biases correlate positively. This makes intuitive sense since an
-# overestimation of inflation in a high-inflation phase implies an even greater sense
-# of urgency to stock up.
-#
-# In terms of purchase adaptation (as percentage of
-# cumulative quantity purchased) perception and expectation biases
-# (in high-inflation) correlate positively with an increase in purchases. Expectation
-# sensitivity also correlates positively with an increase in purchases.
-#
-# Subjects' qualitative perceptions in low-inflation phases correlate negatively
-# with overall performance (expectations do not correlate statically significantly).
-# Their qualitative perceptions as well as expectations in high-inflation phases
-# correlate positively with overall performance.
-#
-# Further, our measures of average accuracy of qualitative estimates correlate
-# positively with overall performance.
 
 df_survey = process_survey.create_survey_df(include_inflation=True)
 
@@ -322,36 +281,6 @@ create_pearson_correlation_matrix(
 # %% [markdown]
 ## Real life vs. savings game
 ### Comparison to trends from surveys in real life
-# Numerous analyses of household surveys on inflation perceptions
-# and expectations demonstrate a positive relationship both between actual (i.e.
-# headline) inflation and perceptons and expectations as well as between perceptions
-# and expectations themselves (Weber et al., 2023; Reiche & Meyler, 2022; Bignon &
-# Gautier, 2022). We observe similar trends in our experimental data as well.
-#
-# Firstly, we find a clear positive correlation between perceptions and
-# expectations as similarly observed by Weber et al. (2023) and Bignon and Gautier
-# (2022). Like Weber et al. (2023) note, the correlation between perceptions and
-# expectations is in fact stronger than the respective correlations with actual
-# inflation.
-#
-# Weber et al. (2023) further note that during the height of the COVID-19
-# pandemic, the dispersion of perception and expectation estimates increased. As
-# can be seen in the histograms of quantitative responses, a similar pattern arises
-# between low- and high-inflation periods. We interpret this parallel as the effect
-# of increased economic uncertainty. To further investigate this possible effect,
-# we compare the share of quantitative responses that are multiples of 5 (Binder, 2017;
-# Gautier & Montornès, 2022; Reiche & Meyler, 2022) as a proxy for uncertain
-# estimates. We graph the time series of actual and quantitative expected inflation
-# with the share of uncertain responses. There are clear spikes in uncertainty
-# during high-inflation phases.
-#
-# Finally, we analyze the qualitative perceptions and estimations. As Andrade et al.
-# (2023) observe, individuals' qualitative estimates are often more accurate than
-# their qualitative ones. As shown in the histogram of responses in low- and
-# high-inflation phases, there are clear shifts to higher qualitative estimates
-# in high-inflation phases.
-
-# %% [markdown]
 #### Figure I – Correlation between perceived and expected inflation (%) <br><br>
 sns.lmplot(
     df_inf_measures[df_inf_measures["participant.round"] == 1],
@@ -808,12 +737,33 @@ data.rename(
     columns={
         "Avg Qual Expectation Accuracy": "Avg_Qual_Expectation_Accuracy",
         "Avg Qual Perception Accuracy": "Avg_Qual_Perception_Accuracy",
+        "Average Uncertain Expectation": "Average_Uncertain_Expectation",
         "sreal_%": "sreal_percent",
         "early_%": "early_percent",
         "excess_%": "excess_percent",
     },
     inplace=True,
 )
+
+regressions = {}
+
+for m in ["sreal_percent", "early_percent", "excess_percent"]:
+    model = smf.ols(
+        formula=f"""{m} ~ Expectation_sensitivity + avg_expectation_bias\
+            + Perception_sensitivity + avg_perception_bias + Avg_Qual_Expectation_Accuracy \
+                + Avg_Qual_Perception_Accuracy + Average_Uncertain_Expectation""",
+        data=data[data["phase"] == "pre"],
+    )
+    regressions[m] = model.fit()
+results = summary_col(
+    results=list(regressions.values()),
+    stars=True,
+    model_names=list(regressions.keys()),
+)
+results
+
+# %%
+#### Change in performance
 
 regressions = {}
 
