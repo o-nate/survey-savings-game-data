@@ -793,7 +793,67 @@ results
 
 # %% [markdown]
 ### Impact of individual characteristics
-#### From round 1 with forward selection
+#### From round 1
+regressions = {}
+data = df_inf_adapt[(df_inf_adapt["phase"] == "pre") & (df_inf_adapt["month"] == 120)]
+data.rename(
+    columns={
+        "sreal_%": "sreal_percent",
+        "early_%": "early_percent",
+        "excess_%": "excess_percent",
+    },
+    inplace=True,
+)
+
+for m in [
+    "sreal_percent",
+    "early_percent",
+    "excess_percent",
+]:
+    model = smf.ols(
+        formula=f"{m} ~ financial_literacy + numeracy + compound + wisconsin_choice_count \
+            + wisconsin_SE + wisconsin_PE + riskPreferences_choice_count \
+                + riskPreferences_switches + lossAversion_choice_count \
+                    + lossAversion_switches + timePreferences_choice_count \
+                        + timePreferences_switches",
+        data=data,
+    )
+    regressions[m] = model.fit()
+results = summary_col(
+    results=list(regressions.values()),
+    stars=True,
+    model_names=list(regressions.keys()),
+)
+results
+
+# %%
+#### With treatment
+regressions = {}
+data = df_inf_adapt[(df_inf_adapt["phase"] == "post") & (df_inf_adapt["month"] == 120)]
+
+for m in [
+    "diff_performance",
+    "diff_early",
+    "diff_excess",
+]:
+    model = smf.ols(
+        formula=f"{m} ~ C(treatment) : (financial_literacy + numeracy + compound + wisconsin_choice_count \
+            + wisconsin_SE + wisconsin_PE + riskPreferences_choice_count \
+                + riskPreferences_switches + lossAversion_choice_count \
+                    + lossAversion_switches + timePreferences_choice_count \
+                        + timePreferences_switches)",
+        data=data,
+    )
+    regressions[m] = model.fit()
+results = summary_col(
+    results=list(regressions.values()),
+    stars=True,
+    model_names=list(regressions.keys()),
+)
+results
+
+# %% [markdown]
+##### With forward selection
 df_qs = df_questionnaire.copy()
 df_qs.columns = [c.replace("Questionnaire.1.player.", "") for c in df_qs.columns]
 
