@@ -155,7 +155,7 @@ def run_forward_selection(
     data: pd.DataFrame, response: str, categoricals: List[str]
 ) -> Type[sm.regression.linear_model.RegressionResultsWrapper]:
     """Conduct forward selection of feature variables. The algorithm's objective is
-    to maximize R^2.
+    to maximize adjusted R^2.
 
     Args:
         data (pd.DataFrame): DataFrame with a column for each feature variable and the
@@ -166,7 +166,7 @@ def run_forward_selection(
 
     Returns:
         model (sm.regression.linear_model.RegressionResultsWrapper): OLS regression
-        model with maximized R^2
+        model with maximized adjusted R^2
     """
     remaining = set(data.columns)
     remaining.remove(response)
@@ -204,7 +204,7 @@ def run_treatment_forward_selection(
     treatment: str = "treatment",
 ) -> Type[sm.regression.linear_model.RegressionResultsWrapper]:
     """Conduct forward selection of feature variables of treatment regression.
-    The algorithm's objective is to maximize R^2.
+    The algorithm's objective is to maximize adjusted R^2.
 
     Args:
         data (pd.DataFrame): DataFrame with a column for each feature variable and the
@@ -215,7 +215,7 @@ def run_treatment_forward_selection(
 
     Returns:
         model (sm.regression.linear_model.RegressionResultsWrapper): OLS regression
-        model with maximized R^2
+        model with maximized adjusted R^2
     """
     remaining = set(data.columns)
     remaining.remove(response)
