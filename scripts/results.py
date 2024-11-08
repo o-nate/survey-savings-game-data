@@ -2,6 +2,7 @@
 
 # %%
 import logging
+from pathlib import Path
 import sys
 
 import matplotlib.pyplot as plt
@@ -30,7 +31,7 @@ from src.stats_analysis import (
     run_forward_selection,
     run_treatment_forward_selection,
 )
-from src.utils.helpers import combine_series
+from src.utils.helpers import combine_series, export_plot
 from src.utils.logging_helpers import set_external_module_log_levels
 
 # * Logging settings
@@ -42,6 +43,13 @@ logger.addHandler(logging.StreamHandler(sys.stdout))
 # * Pandas settings
 pd.options.display.max_columns = None
 pd.options.display.max_rows = None
+
+## Decimal rounding
+pd.set_option("display.float_format", lambda x: "%.2f" % x)
+
+# ! Export plots
+export_all_plots = input("Export all plots? (y) ").lower() == "y"
+FILE_PATH = Path(__file__).parents[1] / "results"
 
 # %% [markdown]
 ## Descriptive statistics: Subjects
@@ -107,7 +115,11 @@ df_pivot_measures = df_measures[
     value_name="Percent of maximum",
 )
 df_pivot_measures["Percent of maximum"] = df_pivot_measures["Percent of maximum"] * 100
-fig = sns.boxplot(
+
+## Create figure and subplots to join both box plots
+fig, (ax, bx) = plt.subplots(1, 2, figsize=(10, 5))
+
+ax = sns.boxplot(
     data=df_pivot_measures[
         df_pivot_measures["Performance measure"].isin(
             constants.PERFORMANCE_MEASURES_NEW_NAMES
@@ -115,19 +127,29 @@ fig = sns.boxplot(
     ],
     x="Performance measure",
     y="Percent of maximum",
+    ax=ax,
 )
-# %%
+
 df_pivot_measures["Percent of maximum"] = df_pivot_measures["Percent of maximum"] / 100
-df_pivot_measures.rename(columns={"Percent of maximum": "Percent"}, inplace=True)
-fig = sns.boxplot(
+df_pivot_measures.rename(columns={"Percent of maximum": "Units of good"}, inplace=True)
+bx = sns.boxplot(
     data=df_pivot_measures[
         df_pivot_measures["Performance measure"].isin(
             constants.PURCHASE_ADAPTATION_NEW_NAME
         )
     ],
     x="Performance measure",
-    y="Percent",
+    y="Units of good",
+    ax=bx,
 )
+ax.set_xlabel(None)
+bx.set_xlabel(None)
+plt.tight_layout()
+
+# ! Export plot
+export_plot(FILE_PATH, "perfromance_measures.png", export_all_plots=export_all_plots)
+
+plt.show()
 
 # %% [markdown]
 ## Expectation and perception of inflation
@@ -151,6 +173,10 @@ g = sns.relplot(
 
 ## Adjust titles
 (g.set_axis_labels("Month", "Inflation rate (%)").tight_layout(w_pad=0.5))
+
+# ! Export plot
+export_plot(FILE_PATH, "inflation_time_series.png", export_all_plots=export_all_plots)
+
 plt.show()
 
 # %%
@@ -269,8 +295,8 @@ create_pearson_correlation_matrix(
     ][
         constants.INFLATION_RESULTS_MEASURES[2:]
         + [
-            "avg_q",
             constants.PURCHASE_ADAPTATION_OLD_NAME[0],
+            "avg_q_%",
             "sreal",
         ]
     ],
@@ -281,13 +307,22 @@ create_pearson_correlation_matrix(
 # %% [markdown]
 ## Real life vs. savings game
 ### Comparison to trends from surveys in real life
-#### Figure I – Correlation between perceived and expected inflation (%) <br><br>
+#### Figure 5 – Correlation between perceived and expected inflation (%) <br><br>
 sns.lmplot(
     df_inf_measures[df_inf_measures["participant.round"] == 1],
     x="Quant Perception",
     y="Quant Expectation",
     hue="participant.round",
+    legend=None,
 )
+
+# ! Export plot
+export_plot(
+    FILE_PATH,
+    "perception_expectations_correlations.png",
+    export_all_plots=export_all_plots,
+)
+
 
 # %%[markdown]
 #### Correlation matrix of inflation measures versus actual inflation
@@ -320,6 +355,26 @@ sns.displot(
     df, x="Estimate", col="inf_phase", row="Estimate Type", bins=5, common_norm=True
 )
 
+# ! Export plot
+export_plot(
+    FILE_PATH,
+    "per_period_distribution_of_qual_responses.png",
+    export_all_plots=export_all_plots,
+)
+
+
+# %% [markdown]
+#### Distribution of estimations table
+df_inf_measures[df_inf_measures["participant.round"] == 1][
+    ["inf_phase", "Quant Perception", "Quant Expectation"]
+].groupby("inf_phase").describe()[
+    [
+        ("Quant Perception", "mean"),
+        ("Quant Perception", "std"),
+        ("Quant Expectation", "mean"),
+        ("Quant Expectation", "std"),
+    ]
+].T
 
 # %% [markdown]
 #### Figure III – Distribution of perceived and expected inflaiton (% of respondents)
@@ -335,34 +390,16 @@ sns.displot(
     df, x="Estimate", hue="inf_phase", col="Estimate Type", kde=True, common_norm=False
 )
 
-# %% [markdown]
-# Figure IV – Inflation IPCH et anticipations d’inflation 2020-2021
-# * Plot estimates over time
-estimates = ["Quant Expectation", "Actual", "Upcoming"]
-g = sns.relplot(
-    data=df_survey[df_survey["participant.round"] == 1][
-        df_survey["Measure"].isin(estimates)
-    ],
-    x="Month",
-    y="Estimate",
-    errorbar=None,
-    hue="Measure",
-    style="Measure",
-    kind="line",
-)
-
-## Adjust titles
-(
-    g.set_axis_labels("Month", "Inflation rate (%)")
-    # .set_titles("Savings Game round: {col_name}")
-    .tight_layout(w_pad=0.5)
+# ! Export plot
+export_plot(
+    FILE_PATH, "distribution_of_qual_responses.png", export_all_plots=export_all_plots
 )
 
 # %%
 # Figure V – Change in estimation uncertainty (% of responses)
 df_uncertain = (
     pd.pivot_table(
-        df_inf_measures[
+        df_inf_measures[df_inf_measures["participant.round"] == 1][
             [
                 "month",
                 "Quant Expectation",
@@ -379,18 +416,30 @@ df_uncertain = (
 
 df_uncertain["Uncertain Expectation"] = df_uncertain["Uncertain Expectation"] * 100
 
-sns.lineplot(
+g = sns.relplot(
     df_uncertain.melt(
         id_vars="month",
-        value_vars=["Quant Expectation", "Uncertain Expectation", "Actual"],
+        value_vars=["Quant Expectation", "Actual", "Uncertain Expectation"],
         var_name="Measure",
         value_name="Value",
     ),
     x="month",
     y="Value",
     hue="Measure",
+    style="Measure",
+    kind="line",
 )
-plt.legend(loc="upper left")
+
+## Adjust titles
+(
+    g.set_axis_labels("Month", "Inflation rate (%)")
+    # .set_titles("Savings Game round: {col_name}")
+    .tight_layout(w_pad=0.5)
+)
+# plt.legend(loc="best")
+
+# ! Export plot
+export_plot(FILE_PATH, "uncertainty_time_series.png", export_all_plots=export_all_plots)
 
 # %% [markdown]
 ## The role of individual characteristics and behavior
@@ -567,8 +616,10 @@ df_adapt["avg_purchase"] = df_adapt.groupby("participant.code")["decision"].tran
     lambda x: x.rolling(12).mean()
 )
 df_inf_adapt = df_individual_char.copy()
-df_inf_adapt = df_inf_adapt.merge(
-    df_adapt[["participant.code", "avg_purchase", "month"]], how="left"
+df_inf_adapt = df_inf_adapt[
+    [c for c in df_inf_adapt.columns if "cum_decision" not in c]
+].merge(
+    df_adapt[["participant.code", "cum_decision", "avg_purchase", "month"]], how="left"
 )
 
 # * Get previous window's inflation expectation
@@ -677,8 +728,6 @@ df_inf_adapt = df_inf_adapt.merge(df_performance_pivot, how="left")
 # %% [markdown]
 ### Do subjects account for inflation in their purchase adaptation?
 #### Without treatment (only round 1)
-# Adaptation (1-12, 12-24, 24-36, 36-48) ~ actual inflation + perception_endOfPhase +
-# expectation_startOfPhase
 df_inf_adapt.rename(
     columns={
         "Uncertain Expectation": "uncertainty",
@@ -709,17 +758,14 @@ results
 
 # %% [markdown]
 #### With treatment
-# Adaptation (1-12, 12-24, 24-36, 36-48) ~ actual inflation + perception_endOfPhase +
-# expectation_startOfPhase + pre|post + treatment
-
 regressions = {}
 
 for m in constants.ADAPTATION_MONTHS:
     model = smf.ols(
         formula="""avg_purchase ~ Actual  \
-            + C(uncertainty) \
-                + C(treatment) * (C(phase)+ current_perception + previous_expectation \
-                    + current_qual_perception + previous_qual_expectation)""",
+            + C(treatment) * (C(phase) + current_perception + previous_expectation \
+                    + C(uncertainty) + current_qual_perception \
+                        + previous_qual_expectation)""",
         data=df_inf_adapt[df_inf_adapt["month"] == m],
     )
     regressions[f"Month {m}"] = model.fit()
@@ -731,8 +777,16 @@ results = summary_col(
 results
 
 # %% [markdown]
-### Regressions of performance measures
-data = df_inf_adapt[df_inf_adapt["month"] == 120]
+### Comparison of regressions of performance measures
+data = df_inf_adapt.copy()
+
+# * Add columns for expectations in month 1
+data["quant_expectation_month_1"] = data.groupby("participant.code")[
+    "Quant Expectation"
+].transform("first")
+data["qual_expectation_month_1"] = data.groupby("participant.code")[
+    "Qual Expectation"
+].transform("first")
 data.rename(
     columns={
         "Avg Qual Expectation Accuracy": "Avg_Qual_Expectation_Accuracy",
@@ -745,11 +799,16 @@ data.rename(
     inplace=True,
 )
 
+# % [markdown]
+####
+
+
 regressions = {}
 
 for m in ["sreal_percent", "early_percent", "excess_percent"]:
     model = smf.ols(
-        formula=f"""{m} ~ Expectation_sensitivity + avg_expectation_bias\
+        formula=f"""{m} ~ quant_expectation_month_1 + qual_expectation_month_1 \
+        + Expectation_sensitivity + avg_expectation_bias\
             + Perception_sensitivity + avg_perception_bias + Avg_Qual_Expectation_Accuracy \
                 + Avg_Qual_Perception_Accuracy + Average_Uncertain_Expectation""",
         data=data[data["phase"] == "pre"],
@@ -781,7 +840,7 @@ for m in [
 ]:
     model = smf.ols(
         formula=f"{m} ~ C(treatment)",
-        data=data,
+        data=data[data["month"] == 120],
     )
     regressions[m] = model.fit()
 results = summary_col(
@@ -837,7 +896,8 @@ for m in [
     "diff_excess",
 ]:
     model = smf.ols(
-        formula=f"{m} ~ C(treatment) : (financial_literacy + numeracy + compound + wisconsin_choice_count \
+        formula=f"{m} ~ C(treatment) : (financial_literacy + numeracy \
+            + compound + wisconsin_choice_count \
             + wisconsin_SE + wisconsin_PE + riskPreferences_choice_count \
                 + riskPreferences_switches + lossAversion_choice_count \
                     + lossAversion_switches + timePreferences_choice_count \
@@ -1004,17 +1064,3 @@ mediation_analysis(
     alpha=0.05,
     seed=42,
 )
-
-# %% [markdown]
-# The mediation analysis of each treatment shows:
-# - <b><u>Control</u></b> neither improves performance (in fact directly worsening performance)
-# nor improves mediating factors. The change in average uncertainty does improve
-# performance, though.
-# - <b><u>Intervention 1</u></b> improves performance through full mediation, improving the
-# mediating factor of the change in average uncertainty. The intervention also improves
-# expectation sensitivity statistically significantly, but the indirect effect this
-# has on performance is not signficant.
-# - <b><u>Intervention 2</u></b> improves performance through partial mediation,
-# improving performance directly as well as through the mediating factor of
-# expectation sensitivity, but the indirect effect these mediators on performance
-# is not signficant.
