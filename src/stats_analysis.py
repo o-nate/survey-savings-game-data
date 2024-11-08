@@ -28,13 +28,6 @@ logger.setLevel(logging.DEBUG)
 # * Output settings
 pd.set_option("display.max_rows", None, "display.max_columns", None)
 
-# ! For exporting (if script run directly)
-# * Declare name of output file
-FINAL_FILE_PREFIX = "stats_analysis"
-
-# * Declare directory of output file
-final_dir = Path(__file__).parents[1] / "results" / "results_csv"
-
 # * Define `decision quantity` measure
 DECISION_QUANTITY = "cum_decision"
 
