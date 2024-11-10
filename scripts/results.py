@@ -48,7 +48,7 @@ pd.options.display.max_rows = None
 pd.set_option("display.float_format", lambda x: "%.2f" % x)
 
 # ! Export plots
-export_all_plots = input("Export all plots? (y) ").lower() == "y"
+export_all_plots = input("Export all plots? (y/n) ").lower() == "y"
 FILE_PATH = Path(__file__).parents[1] / "results"
 
 # %% [markdown]
