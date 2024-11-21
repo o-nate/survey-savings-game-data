@@ -743,7 +743,7 @@ regressions = {}
 for m in constants.ADAPTATION_MONTHS:
     model = smf.ols(
         formula="""avg_purchase ~ Actual + current_perception + previous_expectation \
-            + current_qual_perception + previous_qual_expectation + C(uncertainty)""",
+                + current_qual_perception + previous_qual_expectation + C(uncertainty)""",
         data=df_inf_adapt[
             (df_inf_adapt["phase"] == "pre") & (df_inf_adapt["month"] == m)
         ],
@@ -756,6 +756,7 @@ results = summary_col(
 )
 results
 
+
 # %% [markdown]
 #### With treatment
 regressions = {}
@@ -764,8 +765,7 @@ for m in constants.ADAPTATION_MONTHS:
     model = smf.ols(
         formula="""avg_purchase ~ Actual  \
             + C(treatment) * (C(phase) + current_perception + previous_expectation \
-                    + C(uncertainty) + current_qual_perception \
-                        + previous_qual_expectation)""",
+                + current_qual_perception + previous_qual_expectation + C(uncertainty))""",
         data=df_inf_adapt[df_inf_adapt["month"] == m],
     )
     regressions[f"Month {m}"] = model.fit()
@@ -787,6 +787,13 @@ data["quant_expectation_month_1"] = data.groupby("participant.code")[
 data["qual_expectation_month_1"] = data.groupby("participant.code")[
     "Qual Expectation"
 ].transform("first")
+
+data["qual_expectation_month_1"] = pd.Categorical(
+    data["qual_expectation_month_1"],
+    ordered=True,
+    categories=[0, 1],
+)
+
 data.rename(
     columns={
         "Avg Qual Expectation Accuracy": "Avg_Qual_Expectation_Accuracy",
@@ -799,19 +806,33 @@ data.rename(
     inplace=True,
 )
 
-# % [markdown]
-####
-
-
+# %% [markdown]
+#### Benchmark regression
 regressions = {}
 
 for m in ["sreal_percent", "early_percent", "excess_percent"]:
     model = smf.ols(
-        formula=f"""{m} ~ quant_expectation_month_1 + qual_expectation_month_1 \
-        + Expectation_sensitivity + avg_expectation_bias\
-            + Perception_sensitivity + avg_perception_bias + Avg_Qual_Expectation_Accuracy \
+        formula=f"""{m} ~ Expectation_sensitivity + avg_expectation_bias\
+            + Perception_sensitivity + avg_perception_bias""",
+        data=data[(data["phase"] == "pre") & (data["month"] == 120)],
+    )
+    regressions[m] = model.fit()
+results = summary_col(
+    results=list(regressions.values()),
+    stars=True,
+    model_names=list(regressions.keys()),
+)
+results
+
+# %% [markdown]
+#### Compared to model with qualitative instead of quantitative
+regressions = {}
+
+for m in ["sreal_percent", "early_percent", "excess_percent"]:
+    model = smf.ols(
+        formula=f"""{m} ~ Avg_Qual_Expectation_Accuracy
                 + Avg_Qual_Perception_Accuracy + Average_Uncertain_Expectation""",
-        data=data[data["phase"] == "pre"],
+        data=data[(data["phase"] == "pre") & (data["month"] == 120)],
     )
     regressions[m] = model.fit()
 results = summary_col(
