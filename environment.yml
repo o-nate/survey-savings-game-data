@@ -1,4 +1,4 @@
-name: survey_sg_data
+name: survey-sg-data
 channels:
   - conda-forge
   - defaults
