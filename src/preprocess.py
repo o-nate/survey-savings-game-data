@@ -245,12 +245,17 @@ complete = complete[
 
 # * Remove participants who did not finish Savings Game
 participants_to_remove = remove_failed_tasks(complete)
-logger.info("Removing participants for not completing task: %s", participants_to_remove)
+logger.info(
+    "Removing %s participants for not completing task: %s",
+    len(set(participants_to_remove)),
+    participants_to_remove,
+)
 complete = complete[~complete["participant.label"].isin(participants_to_remove)]
 
 incomplete_exp_participants = remove_exp_incomplete(complete)
 logger.debug(
-    "Participants removed for not completing full experiment: %s",
+    "%s participants removed for not completing full experiment: %s",
+    len(set(incomplete_exp_participants)),
     incomplete_exp_participants,
 )
 complete = complete[~complete["participant.label"].isin(incomplete_exp_participants)]
