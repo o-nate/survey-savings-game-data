@@ -182,7 +182,7 @@ def plot_savings_and_stock(data: pd.DataFrame, **kwargs) -> None:
     ## Rename strategies
     dfts.Strategy.replace(
         ["finalStock", "sgnaive", "sgoptimal"],
-        ["Average", "Naive", "Optimal"],
+        ["Average", "Naïve", "Best"],
         inplace=True,
     )
 
@@ -488,20 +488,107 @@ def main() -> None:
     """Export results to csv file & graph stuffs"""
     df = calculate_opportunity_costs()
     export_data = input("Export data? (y/n):")
-    if export_data != "y" and export_data != "n":
+    if export_data not in ("y", "n"):
         export_data = input("Please respond with 'y' or 'n':")
     if export_data == "y":
         timestr = time.strftime("%Y%m%d-%H%M%S")
         logging.info(timestr)
-        file_name = f"{final_dir}/{FINAL_FILE_PREFIX}_{timestr}.csv"
-        df.to_csv(file_name, sep=";")
-        logging.info("Created %s", file_name)
+        file_path = f"{final_dir}/{FINAL_FILE_PREFIX}_{timestr}.csv"
+        df.to_csv(file_path, sep=";")
+        logging.info("Created %s", file_path)
 
     graph_data = input("Plot data? (y/n):")
     if graph_data != "y" and graph_data != "n":
         graph_data = input("Please respond with 'y' or 'n':")
     if graph_data == "y":
         plot_savings_and_stock(df, col="phase", palette="tab10")
+
+    # * Individual plots
+    ## Convert to time series-esque dataframe for multi-bar plot
+    df_stock = df.melt(
+        id_vars=[
+            "participant.code",
+            "participant.label",
+            "participant.round",
+            "phase",
+            "month",
+        ],
+        var_name="Strategy",
+        value_vars=["finalStock", "sgoptimal", "sgnaive"],
+        value_name="Stock",
+    )
+
+    df_savings = df.melt(
+        id_vars=[
+            "participant.code",
+            "participant.label",
+            "participant.round",
+            "phase",
+            "month",
+        ],
+        var_name="Strategy",
+        value_vars=["sreal", "soptimal", "snaive"],
+        value_name="Savings",
+    )
+
+    dfts = pd.concat([df_stock, df_savings], axis=1, join="inner")
+
+    dfts.drop_duplicates(inplace=True)
+
+    ## Remove duplicate columns
+    dfts = dfts.loc[:, ~dfts.columns.duplicated()].copy()
+
+    ## Rename strategies
+    dfts.Strategy.replace(
+        ["finalStock", "sgnaive", "sgoptimal"],
+        ["Average", "Naïve", "Best"],
+        inplace=True,
+    )
+    export_figs = input("Export figure? (y)")
+    for n in range(2):
+        fig, axes = plt.subplots(1, 1, figsize=(10, 7))
+        sns.barplot(
+            ax=axes,
+            data=dfts[dfts["participant.round"] == n + 1],
+            x="month",
+            y="Stock",
+            palette="tab10",
+            hue="Strategy",
+            errorbar=None,
+        )
+        axes.set_xlabel("Month", labelpad=20, fontsize=14)
+        axes.set_ylabel("Quantity in stock", labelpad=20, fontsize=14)
+        axes.legend(loc="upper center", fontsize=14)
+        axes.set_title(f"Savings Game round {n+1}", fontsize=14)
+
+        ax = axes.twinx()
+        sns.lineplot(
+            ax=ax,
+            data=dfts[dfts["participant.round"] == n + 1],
+            legend=None,
+            x="month",
+            y="Savings",
+            palette="tab10",
+            hue="Strategy",
+            ci=None,
+        )
+        ax.set(xlabel=None)
+        ax.set_ylabel("Savings balance (₮)", labelpad=20, fontsize=14)
+
+        # * Reduce number of tick labels
+        ax.set_xticks(ax.get_xticks()[0:120:12])
+        ax.set_ylim(0, dfts["Savings"].max() + 500)
+
+        if export_figs == "y":
+            fig_name = n + 1
+            file_path = (
+                Path(__file__).parents[1]
+                / "results"
+                / f"overall_performance_{fig_name}.png"
+            )
+            plt.savefig(file_path, bbox_inches="tight")
+
+        plt.show()
 
 
 if __name__ == "__main__":

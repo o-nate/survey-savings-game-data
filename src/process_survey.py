@@ -23,19 +23,19 @@ logger.addHandler(logging.StreamHandler(sys.stdout))
 
 
 def calculate_estimate_bias(
-    df: pd.DataFrame, estimate_col: str, real_inflation_col: str
+    data: pd.DataFrame, estimate_col: str, real_inflation_col: str
 ) -> pd.Series:
     """Takes the difference bewteen real and estimate inflation (real minus estimate)
 
     Args:
-        df (pd.DataFrame): DataFrame with estimate and real inflation columns
+        data (pd.DataFrame): DataFrame with estimate and real inflation columns
         estimate_col (str): column name of estimates
         real_inflation_col (str): column name of real inflation
 
     Returns:
         pd.Series: returns with column for bias
     """
-    return df[estimate_col] - df[real_inflation_col]
+    return data[estimate_col] - data[real_inflation_col]
 
 
 def calculate_estimate_sensitivity(
@@ -313,7 +313,6 @@ def create_survey_df(include_inflation: bool = False) -> pd.DataFrame:
         inplace=True,
     )
     logger.debug(df_survey.info())
-    print(df_survey.head())
 
     # * Add actual inflation
     if include_inflation:

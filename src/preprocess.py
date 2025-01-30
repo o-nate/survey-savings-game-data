@@ -1,6 +1,8 @@
 """Convert data to dataframes and create summary in Excel"""
 
 import logging
+import json
+import os
 from pathlib import Path
 import re
 import sys
@@ -8,8 +10,7 @@ import time
 from typing import List
 import warnings
 
-import json
-
+from dotenv import load_dotenv
 import pandas as pd
 from openpyxl import load_workbook
 from tqdm import tqdm
@@ -122,6 +123,10 @@ EXP_TASK_COMPLETE = 12
 INTERVENTION_1_DATE = "2024-06-20"
 INTERVENTION_2_DATE = "2024-07-02"
 
+load_dotenv()
+## Convert to json since the env variables get imported as str
+LABELS = json.loads(os.getenv("LABELS"))
+
 
 def remove_failed_tasks(df_to_correct: pd.DataFrame) -> List[str]:
     """Find participants that did not complete one or more rounds of the Savings Game"""
@@ -208,6 +213,9 @@ logger.info(
 # * Remove columns with all NaN
 complete = complete.dropna(axis=1, how="all")
 
+# * Remove questionnable participants
+complete = complete[~complete["participant.label"].isin(LABELS)]
+
 # * Convert participant.time_started_utc value to datetime
 complete["participant.time_started_utc"] = pd.to_datetime(
     complete["participant.time_started_utc"]
@@ -237,12 +245,17 @@ complete = complete[
 
 # * Remove participants who did not finish Savings Game
 participants_to_remove = remove_failed_tasks(complete)
-logger.info("Removing participants for not completing task: %s", participants_to_remove)
+logger.info(
+    "Removing %s participants for not completing task: %s",
+    len(set(participants_to_remove)),
+    participants_to_remove,
+)
 complete = complete[~complete["participant.label"].isin(participants_to_remove)]
 
 incomplete_exp_participants = remove_exp_incomplete(complete)
 logger.debug(
-    "Participants removed for not completing full experiment: %s",
+    "%s participants removed for not completing full experiment: %s",
+    len(set(incomplete_exp_participants)),
     incomplete_exp_participants,
 )
 complete = complete[~complete["participant.label"].isin(incomplete_exp_participants)]
@@ -600,7 +613,7 @@ logger.info("Complete. Total participants included: %s", (final_payments.shape[0
 
 if __name__ == "__main__":
     export_results = input("Would you like to export the results to Excel? (y/n):")
-    if export_results != "y" and export_results != "n":
+    if export_results not in ("y", "n"):
         export_results = input("Please, respond by typing y or n:")
     if export_results == "y":
         ## Excel of performance per session

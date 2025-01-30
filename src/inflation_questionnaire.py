@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
-from src.calc_opp_costs import df_opp_cost
+from src import calc_opp_costs
 from src.preprocess import final_df_dict
 from src.utils.logging_helpers import set_external_module_log_levels
 
@@ -61,7 +61,7 @@ inf_behavior_cols = [
     "inflation_score",
 ]
 # %%
-df2 = df_opp_cost.copy()
+df2 = calc_opp_costs.calculate_opportunity_costs()
 df2 = df2.merge(df[["participant.label"] + inf_behavior_cols], how="left")
 
 for c in inf_behavior_cols:
