@@ -73,3 +73,36 @@ survey_pivot["Quant_Expectation_before"] = survey_pivot.groupby("participant.cod
 ].shift(-1)
 
 survey_pivot.head()
+
+# %% [markdown]
+## Regressions of round 1
+survey_pivot = survey_pivot.rename(
+    columns={
+        "participant.round": "round",
+        "Quant Perception": "Quant_Perception",
+        "Quant Expectation": "Quant_Expectation",
+    },
+)
+
+models = {
+    "Perception": "Quant_Perception ~ Quant_Perception_before + Actual + round",
+    "Expectation": "Quant_Expectation ~ Quant_Expectation_before + Quant_Perception + Upcoming",
+    # "Expectation": """
+    # Quant_Expectation ~ Quant_Expectation_before + Quant_Perception + Upcoming + Actual + round
+    # """,
+}
+
+regressions = {}
+
+for estimate, model in models.items():
+    model = smf.ols(
+        formula=model,
+        data=survey_pivot[survey_pivot["round"] == 1],
+    )
+    regressions[estimate] = model.fit()
+results = summary_col(
+    results=list(regressions.values()),
+    stars=True,
+    model_names=list(regressions.keys()),
+)
+results
