@@ -14,13 +14,10 @@ from dotenv import load_dotenv
 import pandas as pd
 from openpyxl import load_workbook
 from tqdm import tqdm
-from src.utils.logging_helpers import set_external_module_log_levels
+from src.utils.logging_config import get_logger
 
 # * Logging settings
-logger = logging.getLogger(__name__)
-set_external_module_log_levels("warning")
-logger.setLevel(logging.DEBUG)
-logger.addHandler(logging.StreamHandler(sys.stdout))
+logger = get_logger(__name__)
 
 # * Declare name of file to process
 FILE = "all_apps_wide_2024-07-08.csv"

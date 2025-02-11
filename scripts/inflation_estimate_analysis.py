@@ -2,40 +2,14 @@
 import logging
 import sys
 
-from pathlib import Path
-
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from pingouin import mediation_analysis
-import seaborn as sns
 import statsmodels.formula.api as smf
 from statsmodels.iolib.summary2 import summary_col
 
-from scripts.utils import constants
-
-from src import (
-    calc_opp_costs,
-    discontinuity,
-    intervention,
-    econ_preferences,
-    knowledge,
-    process_survey,
-)
-
-from src.preprocess import final_df_dict
 from src.process_survey import create_survey_df, pivot_inflation_measures
-from src.stats_analysis import (
-    create_bonferroni_correlation_table,
-    create_pearson_correlation_matrix,
-    run_forward_selection,
-    run_treatment_forward_selection,
-)
 from src.utils.constants import INFLATION_DICT
-from src.utils.helpers import combine_series, export_plot
-from src.utils.logging_helpers import set_external_module_log_levels
-
-inf_file = Path(__file__).parents[1] / "data" / "animal_spirits.csv"
+from src.utils.logging_config import get_logger
 
 # * Logging settings
 logger = logging.getLogger(__name__)

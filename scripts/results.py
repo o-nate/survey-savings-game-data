@@ -1,9 +1,7 @@
 """Present results from experiment"""
 
 # %%
-import logging
 from pathlib import Path
-import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -15,16 +13,15 @@ from statsmodels.iolib.summary2 import summary_col
 
 from scripts.utils import constants
 
-from src import (
-    calc_opp_costs,
-    discontinuity,
-    intervention,
-    econ_preferences,
-    knowledge,
-    process_survey,
-)
+from src import calc_opp_costs, discontinuity, intervention, econ_preferences, knowledge
 
 from src.preprocess import final_df_dict
+from src.process_survey import (
+    create_survey_df,
+    include_inflation_measures,
+    include_uncertainty_measure,
+    pivot_inflation_measures,
+)
 from src.stats_analysis import (
     create_bonferroni_correlation_table,
     create_pearson_correlation_matrix,
@@ -32,13 +29,10 @@ from src.stats_analysis import (
     run_treatment_forward_selection,
 )
 from src.utils.helpers import combine_series, export_plot
-from src.utils.logging_helpers import set_external_module_log_levels
+from src.utils.logging_config import get_logger
 
 # * Logging settings
-logger = logging.getLogger(__name__)
-set_external_module_log_levels("error")
-logger.setLevel(logging.DEBUG)
-logger.addHandler(logging.StreamHandler(sys.stdout))
+logger = get_logger(__name__)
 
 # * Pandas settings
 pd.options.display.max_columns = None
@@ -155,7 +149,7 @@ plt.show()
 ## Expectation and perception of inflation
 ### Quality of inflation expectations and perceptions and performance
 
-df_survey = process_survey.create_survey_df(include_inflation=True)
+df_survey = create_survey_df(include_inflation=True)
 
 # * Plot estimates over time
 estimates = ["Quant Perception", "Quant Expectation", "Actual", "Upcoming"]
@@ -180,8 +174,8 @@ export_plot(FILE_PATH, "inflation_time_series.png", export_all_plots=export_all_
 plt.show()
 
 # %%
-df_inf_measures = process_survey.pivot_inflation_measures(df_survey)
-df_inf_measures = process_survey.include_inflation_measures(df_inf_measures)
+df_inf_measures = pivot_inflation_measures(df_survey)
+df_inf_measures = include_inflation_measures(df_inf_measures)
 
 
 # %% [markdown]
@@ -277,7 +271,7 @@ df_accuracy.rename(
 df_inf_measures = df_inf_measures.merge(df_accuracy.reset_index(), how="left")
 
 # * Add uncertainty measure
-df_inf_measures["Uncertain Expectation"] = process_survey.include_uncertainty_measure(
+df_inf_measures["Uncertain Expectation"] = include_uncertainty_measure(
     df_inf_measures, "Quant Expectation", 1, 0
 )
 df_inf_measures["Average Uncertain Expectation"] = df_inf_measures.groupby(

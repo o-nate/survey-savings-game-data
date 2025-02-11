@@ -4,13 +4,10 @@ import logging
 import sys
 
 from src.preprocess import final_df_dict
-from src.utils.logging_helpers import set_external_module_log_levels
+from src.utils.logging_config import get_logger
 
 # * Logging settings
-logger = logging.getLogger(__name__)
-set_external_module_log_levels("warning")
-logger.setLevel(logging.DEBUG)
-logger.addHandler(logging.StreamHandler(sys.stdout))
+logger = get_logger(__name__)
 
 # * Constants for testing
 MEAN_TRIAL_NUMBER = 30

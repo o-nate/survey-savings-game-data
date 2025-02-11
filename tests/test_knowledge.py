@@ -12,15 +12,11 @@ from src import calc_opp_costs, discontinuity, process_survey
 
 from src.knowledge import count_correct_responses, create_knowledge_dataframe
 from src.preprocess import final_df_dict
-from src.utils.logging_helpers import set_external_module_log_levels
+from src.utils.logging_config import get_logger
 
 from tests.utils import constants
 
-# * Logging settings
-logger = logging.getLogger(__name__)
-set_external_module_log_levels("error")
-logger.setLevel(logging.DEBUG)
-logger.addHandler(logging.StreamHandler(sys.stdout))
+logger = get_logger(__name__)
 
 logger.info("Testing knowledge measures")
 

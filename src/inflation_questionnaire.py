@@ -11,13 +11,10 @@ import seaborn as sns
 
 from src import calc_opp_costs
 from src.preprocess import final_df_dict
-from src.utils.logging_helpers import set_external_module_log_levels
+from src.utils.logging_config import get_logger
 
 # * Logging settings
-logger = logging.getLogger(__name__)
-set_external_module_log_levels("warning")
-logger.setLevel(logging.DEBUG)
-logger.addHandler(logging.StreamHandler(sys.stdout))
+logger = get_logger(__name__)
 
 
 def calculate_inflation_score(data: pd.DataFrame) -> pd.Series:

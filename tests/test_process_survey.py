@@ -16,14 +16,10 @@ from src.process_survey import (
     include_inflation_measures,
     include_uncertainty_measure,
 )
-from src.utils.logging_helpers import set_external_module_log_levels
+from src.utils.logging_config import get_logger
 
 
-# * Logging settings
-logger = logging.getLogger(__name__)
-set_external_module_log_levels("Error")
-logger.setLevel(logging.DEBUG)
-logger.addHandler(logging.StreamHandler(sys.stdout))
+logger = get_logger(__name__)
 
 logger.info("Testing process_survey module")
 data = create_survey_df()

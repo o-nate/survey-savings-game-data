@@ -18,12 +18,9 @@ from src.calc_opp_costs import calculate_opportunity_costs
 from src.utils import constants
 from src.discontinuity import purchase_discontinuity
 from src.utils.helpers import combine_series
-from src.utils.logging_helpers import set_external_module_log_levels
+from src.utils.logging_config import get_logger
 
-# * Logging settings
-logger = logging.getLogger(__name__)
-set_external_module_log_levels("warning")
-logger.setLevel(logging.DEBUG)
+logger = get_logger(__name__)
 
 # * Output settings
 pd.set_option("display.max_rows", None, "display.max_columns", None)

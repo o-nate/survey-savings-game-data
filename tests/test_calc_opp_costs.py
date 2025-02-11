@@ -4,13 +4,10 @@ import logging
 import sys
 
 from src.calc_opp_costs import calculate_opportunity_costs
-from src.utils.logging_helpers import set_external_module_log_levels
+from src.utils.logging_config import get_logger
 
 # * Logging settings
-logger = logging.getLogger(__name__)
-set_external_module_log_levels("warning")
-logger.setLevel(logging.DEBUG)
-logger.addHandler(logging.StreamHandler(sys.stdout))
+logger = get_logger(__name__)
 
 TEST_PARTICIPANT_CODE = "17c9d4zc"
 

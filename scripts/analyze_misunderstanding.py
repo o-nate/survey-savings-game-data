@@ -32,7 +32,7 @@ from src.stats_analysis import (
     run_treatment_forward_selection,
 )
 from src.utils.helpers import combine_series, export_plot
-from src.utils.logging_helpers import set_external_module_log_levels
+from src.utils.logging_config import get_logger
 
 # * Logging settings
 logger = logging.getLogger(__name__)

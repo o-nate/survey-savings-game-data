@@ -20,12 +20,10 @@ from tqdm.auto import tqdm
 
 from src.preprocess import final_df_dict
 from src.utils.logging_helpers import set_external_module_log_levels
+from src.utils.logging_config import get_logger
 
 # * Logging settings
-logger = logging.getLogger(__name__)
-set_external_module_log_levels("warning")
-logger.setLevel(logging.DEBUG)
-logger.addHandler(logging.StreamHandler(sys.stdout))
+logger = get_logger(__name__)
 
 
 # * Declare inflation csv file
@@ -114,7 +112,7 @@ def strategy_savings_calc(strategy_list: List[str], df: pd.DataFrame) -> pd.Data
         df[f"s{strat}"] = np.nan
         ## For 1st month, Si_1 = Si_(t-1) * (1+r) + y - p_1*qi_1
         df[f"s{strat}"][df["month"] == 1] = (
-            ENDOWMENT + WAGE - df["newPrice"] * df[q_col]
+            INITIAL_ENDOWMENT + WAGE - df["newPrice"] * df[q_col]
         )
         df[f"s{strat}"] = savings_calc(df, strat)
     return df

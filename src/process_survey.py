@@ -12,14 +12,11 @@ import seaborn as sns
 
 from src.preprocess import final_df_dict
 from src.utils.constants import INFLATION_DICT
-from src.utils.logging_helpers import set_external_module_log_levels
+from src.utils.logging_config import get_logger
 from src.utils.helpers import combine_series
 
 # * Logging settings
-logger = logging.getLogger(__name__)
-set_external_module_log_levels("warning")
-logger.setLevel(logging.DEBUG)
-logger.addHandler(logging.StreamHandler(sys.stdout))
+logger = get_logger(__name__)
 
 
 def calculate_estimate_bias(

@@ -10,14 +10,10 @@ from src.econ_preferences import (
     create_econ_preferences_dataframe,
 )
 from src.preprocess import final_df_dict
-from src.utils.logging_helpers import set_external_module_log_levels
+from src.utils.logging_config import get_logger
 from utils import constants
 
-# * Logging settings
-logger = logging.getLogger(__name__)
-set_external_module_log_levels("error")
-logger.setLevel(logging.DEBUG)
-logger.addHandler(logging.StreamHandler(sys.stdout))
+logger = get_logger(__name__)
 
 logger.info("Testing economic preferences module")
 

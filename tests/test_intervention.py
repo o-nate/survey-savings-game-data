@@ -14,15 +14,12 @@ from src.calc_opp_costs import calculate_opportunity_costs
 from src.discontinuity import purchase_discontinuity
 from src.intervention import calculate_change_in_measure
 from src.preprocess import final_df_dict
-from src.utils.logging_helpers import set_external_module_log_levels
+from src.utils.logging_config import get_logger
 
 from tests.utils.constants import CHANGE_IN_PERFORMANCE
 
 # * Logging settings
-logger = logging.getLogger(__name__)
-set_external_module_log_levels("warning")
-logger.setLevel(logging.DEBUG)
-logger.addHandler(logging.StreamHandler(sys.stdout))
+logger = get_logger(__name__)
 
 
 # * Define `decision quantity` measure
