@@ -1,5 +1,10 @@
 """Constants for src modules"""
 
+# * Savings Game initial parameters
+INITIAL_ENDOWMENT = 863.81
+INTEREST_RATE = 0.2277300 / 12
+WAGE = 4.32
+
 # * Define annualized inflation, per 12 months
 INF_1012 = [0.45, 60.79, 0.45, 60.79, 0.45, 60.79, 0.45, 60.79, 0.45, 60.79]
 INF_430 = [0.38, 0.47, 26.85, 55.49, 64.18, 0.38, 0.47, 26.85, 55.49, 64.18]

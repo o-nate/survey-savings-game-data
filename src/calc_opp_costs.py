@@ -19,7 +19,7 @@ import seaborn as sns
 from tqdm.auto import tqdm
 
 from src.preprocess import final_df_dict
-from src.utils.logging_helpers import set_external_module_log_levels
+from src.utils.constants import INITIAL_ENDOWMENT, INTEREST_RATE, WAGE
 from src.utils.logging_config import get_logger
 
 # * Logging settings
@@ -42,25 +42,17 @@ final_dir = Path(__file__).parents[1] / "data" / "preprocessed"
 
 # # Set rounding
 pd.set_option("display.float_format", lambda x: "%.7f" % x)
-
-# # CONSTANTS
-## Initial endowment
-ENDOWMENT = 863.81
-## Interest rate
-INTEREST = 0.2277300 / 12
-## Wage
-WAGE = 4.32
 logging.info(
     f"Unrounded constants:\n\
-      Initial endowment: {ENDOWMENT}, Interest rate: {INTEREST}, Wage: {WAGE}"
+      Initial endowment: {INITIAL_ENDOWMENT}, Interest rate: {INTEREST_RATE}, Wage: {WAGE}"
 )
 
 ## Correct for Python rounding issues versus interest rate used in oTree
-INTEREST = Decimal(INTEREST).quantize(Decimal(".0000001"), rounding=ROUND_UP)
+INTEREST = Decimal(INTEREST_RATE).quantize(Decimal(".0000001"), rounding=ROUND_UP)
 INTEREST = float(INTEREST)
 logging.info(
     f"Rounded constants:\n\
-      Initial endowment: {ENDOWMENT}, Interest rate: {INTEREST}, Wage: {WAGE}"
+      Initial endowment: {INITIAL_ENDOWMENT}, Interest rate: {INTEREST}, Wage: {WAGE}"
 )
 
 ## Columns to pull from original dataframes
