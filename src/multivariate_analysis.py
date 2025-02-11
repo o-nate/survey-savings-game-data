@@ -13,16 +13,16 @@ import matplotlib.pyplot as plt
 
 from src import calc_opp_costs, process_survey
 
-# from utils.logging_config import get_logger
+from src.utils.logging_config import get_logger
 
 
 # * Logging settings
-# logger = get_logger(__name__)
+logger = get_logger(__name__)
 
 
-def analyze_treatment_effects(data: pd.DataFrame) -> dict[str, Any]:
+def analyze_treatment_effects(data: pd.DataFrame, month: int) -> dict[str, Any]:
     """
-    Analyze the effect of treatment on Quant Expectation and finalStock at Month 12,
+    Analyze the effect of treatment on Quant Expectation and finalStock at month,
     comparing participant rounds 1 and 2. Provide data visualizations as well.
 
     Args:
@@ -33,13 +33,20 @@ def analyze_treatment_effects(data: pd.DataFrame) -> dict[str, Any]:
         'Month',
         'Quant Expectation',
         'finalStock'
+        month (str): Month of measurement
 
     Returns:
         dict[str, Any]: Dictionary with results
     """
 
-    # Filter for Month 12
-    df_analysis = data[data["Month"] == 12].copy()
+    # Filter for Month
+    df_analysis = data[data["Month"].isin([max(1, month - 12), month])].copy()
+
+    # Set expectation as previous estimate
+    df_analysis["previous_expectation"] = df_analysis.groupby("participant.code")[
+        "Quant Expectation"
+    ].shift(1)
+    df_analysis["Quant Expectation"] = df_analysis["previous_expectation"]
 
     # Create summary statistics function
     def get_summary_stats(group):
@@ -486,16 +493,30 @@ def main() -> None:
 
     df_decisions = df_inf_measures.merge(df_opp_cost, how="left")
     df_decisions.head()
-    results = analyze_treatment_effects(df_decisions)
+
+    # Month 12
+    results = analyze_treatment_effects(df_decisions, 12)
 
     interpretation = interpret_results(results)
     print(interpretation)
 
-    fig = create_statistical_visualizations(results)
+    _ = create_statistical_visualizations(results)
     plt.show()
 
-    effects_table = create_detailed_effects_table(results)
-    print(effects_table)
+    # effects_table = create_detailed_effects_table(results)
+    # print(effects_table)
+
+    # Month 36
+    results = analyze_treatment_effects(df_decisions, 36)
+
+    interpretation = interpret_results(results)
+    print(interpretation)
+
+    _ = create_statistical_visualizations(results)
+    plt.show()
+
+    # effects_table = create_detailed_effects_table(results)
+    # print(effects_table)
 
 
 if __name__ == "__main__":
