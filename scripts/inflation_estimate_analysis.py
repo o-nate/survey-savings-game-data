@@ -11,11 +11,7 @@ from src.process_survey import create_survey_df, pivot_inflation_measures
 from src.utils.constants import INFLATION_DICT
 from src.utils.logging_config import get_logger
 
-# * Logging settings
-logger = logging.getLogger(__name__)
-set_external_module_log_levels("error")
-logger.setLevel(logging.DEBUG)
-logger.addHandler(logging.StreamHandler(sys.stdout))
+logger = get_logger(__name__)
 
 # * Pandas settings
 pd.options.display.max_columns = None
