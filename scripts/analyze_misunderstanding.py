@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 import sys
 
+import duckdb
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -24,21 +25,17 @@ from src import (
     process_survey,
 )
 
-from src.preprocess import final_df_dict
 from src.stats_analysis import (
     create_bonferroni_correlation_table,
     create_pearson_correlation_matrix,
     run_forward_selection,
     run_treatment_forward_selection,
 )
+from src.utils.database import create_duckdb_database, table_exists
 from src.utils.helpers import combine_series, export_plot
 from src.utils.logging_config import get_logger
 
-# * Logging settings
-logger = logging.getLogger(__name__)
-set_external_module_log_levels("error")
-logger.setLevel(logging.DEBUG)
-logger.addHandler(logging.StreamHandler(sys.stdout))
+logger = get_logger(__name__)
 
 # * Pandas settings
 pd.options.display.max_columns = None
@@ -47,12 +44,16 @@ pd.options.display.max_rows = None
 ## Decimal rounding
 pd.set_option("display.float_format", lambda x: "%.2f" % x)
 
+DATABASE_FILE = Path(__file__).parents[1] / "data" / "database.duckdb"
+con = duckdb.connect(DATABASE_FILE, read_only=False)
 
 # %%
 df_opp_cost = calc_opp_costs.calculate_opportunity_costs()
 
 # %%
-df = final_df_dict["task_instructions"].copy()
+if table_exists(con, "task_instructions") == False:
+    create_duckdb_database(con, initial_creation=True)
+df = con.sql("SELECT * FROM task_instructions").df()
 df2 = df_opp_cost[
     (df_opp_cost["month"] == 120) & (df_opp_cost["participant.round"] == 1)
 ]

@@ -1,7 +1,8 @@
 """Test economic preferences module"""
 
-import logging
-import sys
+from pathlib import Path
+
+import duckdb
 
 from src.econ_preferences import (
     count_preference_choices,
@@ -9,16 +10,21 @@ from src.econ_preferences import (
     count_wisconsin_errors,
     create_econ_preferences_dataframe,
 )
-from src.preprocess import final_df_dict
+from src.utils.database import create_duckdb_database, table_exists
 from src.utils.logging_config import get_logger
 from utils import constants
 
 logger = get_logger(__name__)
 
+DATABASE_FILE = Path(__file__).parents[1] / "data" / "database.duckdb"
+con = duckdb.connect(DATABASE_FILE, read_only=False)
+if table_exists(con, "Inflation") == False:
+    create_duckdb_database(con, initial_creation=True)
+
 logger.info("Testing economic preferences module")
 
 logger.info("Testing: Risk preferences")
-df = final_df_dict["riskPreferences"].copy()
+df = con.sql("SELECT * FROM riskPreferences").df()
 df["n_safe"] = count_preference_choices(df, "riskPreferences")
 df["n_switches"] = count_switches(df, "riskPreferences")
 result = df[df["participant.code"] == constants.RISK_SAFE_PARTICIPANT_CODE][
@@ -32,7 +38,7 @@ assert result == constants.RISK_SWITCHES_NUMBER
 
 
 logger.info("Testing switch count: Loss aversion")
-df = final_df_dict["lossAversion"].copy()
+df = con.sql("SELECT * FROM lossAversion").df()
 df["n_switches"] = count_switches(df, "lossAversion")
 result = df[df["participant.code"] == constants.LOSS_SWITCHES_PARTICIPANT_CODE][
     "n_switches"
@@ -41,7 +47,7 @@ assert result == constants.LOSS_SWITCHES_NUMBER
 
 
 logger.info("Testing: Time preferences")
-df = final_df_dict["timePreferences"].copy()
+df = con.sql("SELECT * FROM timePreferences").df()
 df["n_present"] = count_preference_choices(df, "timePreferences")
 result = df[df["participant.code"] == constants.TIME_PRESENT_PARTICIPANT_CODE][
     "n_present"
@@ -57,7 +63,7 @@ assert result == constants.TIME_PRESENT_SWITCHES
 
 
 logger.info("Testing Wisconsin Card Sorting Task")
-df = final_df_dict["wisconsin"].copy()
+df = con.sql("SELECT * FROM wisconsin").df()
 df["n_corr"] = count_preference_choices(df, "wisconsin")
 logger.debug(df[["participant.code", "n_corr"]].head())
 result = df[df["participant.code"] == constants.WISC_PARTICIPANT_CODE]["n_corr"].values[
@@ -79,7 +85,7 @@ assert result == constants.WISC_N_SE
 logger.info("Testing creat dataframe")
 df_econ_preferences = create_econ_preferences_dataframe()
 result = df_econ_preferences.shape
-logger.debug("Shape %s", result)
+logger.debug("Shape %s vs %s", result, constants.DATAFRAME_SHAPE)
 assert result == constants.DATAFRAME_SHAPE
 
 

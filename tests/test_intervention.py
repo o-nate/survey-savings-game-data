@@ -2,24 +2,26 @@
 
 import logging
 import math
-import sys
-from typing import List, Tuple
 
-import matplotlib.pyplot as plt
-import pandas as pd
-from scipy import stats
-import seaborn as sns
+from pathlib import Path
+
+import duckdb
 
 from src.calc_opp_costs import calculate_opportunity_costs
 from src.discontinuity import purchase_discontinuity
 from src.intervention import calculate_change_in_measure
-from src.preprocess import final_df_dict
+from src.utils.database import create_duckdb_database, table_exists
 from src.utils.logging_config import get_logger
 
 from tests.utils.constants import CHANGE_IN_PERFORMANCE
 
 # * Logging settings
 logger = get_logger(__name__)
+
+DATABASE_FILE = Path(__file__).parents[1] / "data" / "database.duckdb"
+con = duckdb.connect(DATABASE_FILE, read_only=False)
+if table_exists(con, "Inflation") == False:
+    create_duckdb_database(con, initial_creation=True)
 
 
 # * Define `decision quantity` measure
@@ -30,7 +32,7 @@ WINDOW = 3
 
 logger.info("Testing intervention module")
 
-df_int = final_df_dict["task_int"].copy()
+df_int = con.sql("SELECT * FROM task_int").df()
 
 df_results = calculate_opportunity_costs()
 

@@ -4,33 +4,37 @@ of error (early, late, and excess purchases). When run directly as a script
 (`python calc_opp_costs.py`), generate a csv in `data/preprocessed`
 """
 
-from decimal import Decimal, ROUND_UP
-import logging
 import math
-from pathlib import Path
-import sys
 import time
-from typing import List
 
+from decimal import Decimal, ROUND_UP
+from pathlib import Path
+
+import duckdb
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
 from tqdm.auto import tqdm
 
-from src.preprocess import final_df_dict
+from src.preprocess import preprocess_data
 from src.utils.constants import INITIAL_ENDOWMENT, INTEREST_RATE, WAGE
+from src.utils.database import create_duckdb_database, table_exists
 from src.utils.logging_config import get_logger
 
 # * Logging settings
 logger = get_logger(__name__)
 
+# * Declare duckdb database info
+DATABASE_FILE = Path(__file__).parents[1] / "data" / "database.duckdb"
+TABLE_NAME = "strategies"
+
 
 # * Declare inflation csv file
-inf_file = Path(__file__).parents[1] / "data" / "animal_spirits.csv"
+INF_FILE = Path(__file__).parents[1] / "data" / "animal_spirits.csv"
 
 # * Declare optimal decisions file
-optimal_file = Path(__file__).parents[1] / "data" / "optimal_purchases.csv"
+OPTIMAL_DECISIONS_FILE = Path(__file__).parents[1] / "data" / "optimal_purchases.csv"
 
 # ! For exporting (if script run directly)
 # * Declare name of output file
@@ -42,7 +46,7 @@ final_dir = Path(__file__).parents[1] / "data" / "preprocessed"
 
 # # Set rounding
 pd.set_option("display.float_format", lambda x: "%.7f" % x)
-logging.info(
+logger.info(
     f"Unrounded constants:\n\
       Initial endowment: {INITIAL_ENDOWMENT}, Interest rate: {INTEREST_RATE}, Wage: {WAGE}"
 )
@@ -50,7 +54,7 @@ logging.info(
 ## Correct for Python rounding issues versus interest rate used in oTree
 INTEREST = Decimal(INTEREST_RATE).quantize(Decimal(".0000001"), rounding=ROUND_UP)
 INTEREST = float(INTEREST)
-logging.info(
+logger.info(
     f"Rounded constants:\n\
       Initial endowment: {INITIAL_ENDOWMENT}, Interest rate: {INTEREST}, Wage: {WAGE}"
 )
@@ -97,7 +101,7 @@ def savings_calc(df: pd.DataFrame, strategy: str) -> pd.DataFrame:
     return df[f"s{strategy}"]
 
 
-def strategy_savings_calc(strategy_list: List[str], df: pd.DataFrame) -> pd.DataFrame:
+def strategy_savings_calc(strategy_list: list[str], df: pd.DataFrame) -> pd.DataFrame:
     """Apply savings_calc for each strategy"""
     for strat in strategy_list:
         q_col = f"q{strat}" if strat != "real" else "decision"
@@ -222,33 +226,54 @@ def calculate_opportunity_costs() -> pd.DataFrame:
     Returns:
         pd.DataFrame: Opportunity costs per subject per month
     """
-    df_inf = pd.read_csv(inf_file, delimiter=",", header=0)
+    logger.info("Checking if data already in database")
+    con = duckdb.connect(DATABASE_FILE, read_only=False)
+    if (
+        table_exists(con, "decision")
+        and table_exists(con, "finalStock")
+        and table_exists(con, "newPrice")
+        and table_exists(con, "finalSavings")
+    ):
+        df_decision = con.sql("SELECT * FROM decision").df()
+        df_stock = con.sql("SELECT * FROM finalStock").df()
+        df_prices = con.sql("SELECT * FROM newPrice").df()
+        df_save = con.sql("SELECT * FROM finalSavings").df()
+    else:
+        final_df_dict = preprocess_data()
+        create_duckdb_database(con, final_df_dict)
+        df_decision = final_df_dict["decision"].copy()
+        df_stock = final_df_dict["finalStock"].copy()
+        df_prices = final_df_dict["newPrice"].copy()
+        df_save = final_df_dict["finalSavings"].copy()
+
+    if table_exists(con, TABLE_NAME):
+        logger.debug("Table exists!!!****************************")
+        return con.sql(f"SELECT * FROM {TABLE_NAME}").df()
+
+    df_inf = pd.read_csv(INF_FILE, delimiter=",", header=0)
     df_inf.rename(columns={"period": "month"}, inplace=True)
 
     # Import optimal purchase
-    opt = pd.read_csv(optimal_file, delimiter=";")
+    opt = pd.read_csv(OPTIMAL_DECISIONS_FILE, delimiter=";")
 
     # # Create time series for purchase decisions and stock
     ## Decision quantity
-    df1 = final_df_dict["decision"].copy()
-    df2 = df1.melt(
+    df2 = df_decision.melt(
         id_vars=MELT_COLS,
-        value_vars=[c for c in df1.columns if "decision" in c],
+        value_vars=[c for c in df_decision.columns if "decision" in c],
         var_name="month",
         value_name="decision",
     )
 
     ## For stock
-    df1 = final_df_dict["finalStock"].copy()
-    df3 = df1.melt(
+    df3 = df_stock.melt(
         id_vars=MELT_COLS,
-        value_vars=[c for c in df1.columns if "finalStock" in c],
+        value_vars=[c for c in df_stock.columns if "finalStock" in c],
         var_name="month",
         value_name="finalStock",
     )
 
     ## Add price column
-    df_prices = final_df_dict["newPrice"].copy()
     df_prices2 = df_prices.melt(
         id_vars=MELT_COLS,
         value_vars=[c for c in df_prices.columns if "newPrice" in c],
@@ -422,13 +447,12 @@ def calculate_opportunity_costs() -> pd.DataFrame:
 
     ## Calculate savings balance for each strategy, `i`
     strategies = ["naive", "1", "2", "nf", "optimal", "real"]
-    logging.info(
+    logger.info(
         "Calculating savings balances for strategies: %s", ", ".join(strategies)
     )
     df_opp_cost = strategy_savings_calc(strategies, df_opp_cost)
 
     ## Add actual savings balance
-    df_save = final_df_dict["finalSavings"].copy()
     df_save2 = df_save.melt(
         id_vars=[
             "participant.code",
@@ -459,17 +483,21 @@ def calculate_opportunity_costs() -> pd.DataFrame:
 
     df_opp_cost = df_opp_cost.merge(df_save2, how="left")
 
-    logging.info("Done, df_opp_cost shape: %s", df_opp_cost.shape)
+    logger.info("Done, df_opp_cost shape: %s", df_opp_cost.shape)
 
     # * Calculate opportunity costs for each category: early, late, and excess
     df_opp_cost = categorize_opp_cost(df_opp_cost)
-    logging.info("Done, df_opp_cost shape: %s", df_opp_cost.shape)
+    logger.info("Done, df_opp_cost shape: %s", df_opp_cost.shape)
 
     # * Calculate percentage of max
     for measure in ["early", "late", "excess", "sreal", "finalSavings"]:
         df_opp_cost[f"{measure}_%"] = df_opp_cost[measure] / df_opp_cost["soptimal"]
 
-    logging.info("Done, df_opp_cost columns: %s", df_opp_cost.columns.to_list())
+    logger.info("Done, df_opp_cost columns: %s", df_opp_cost.columns.to_list())
+
+    logger.info("Creating table in duckdb database")
+    create_duckdb_database(con, {TABLE_NAME: df_opp_cost})
+    logger.info("% table added to database")
 
     return df_opp_cost
 
@@ -482,10 +510,10 @@ def main() -> None:
         export_data = input("Please respond with 'y' or 'n':")
     if export_data == "y":
         timestr = time.strftime("%Y%m%d-%H%M%S")
-        logging.info(timestr)
+        logger.info(timestr)
         file_path = f"{final_dir}/{FINAL_FILE_PREFIX}_{timestr}.csv"
         df.to_csv(file_path, sep=";")
-        logging.info("Created %s", file_path)
+        logger.info("Created %s", file_path)
 
     graph_data = input("Plot data? (y/n):")
     if graph_data != "y" and graph_data != "n":

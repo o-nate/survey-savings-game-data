@@ -1,20 +1,24 @@
 """Process responses from inflation questionnaire"""
 
 # %%
-import logging
-import sys
+from pathlib import Path
 
-from functools import reduce
+import duckdb
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
+from functools import reduce
+
 from src import calc_opp_costs
-from src.preprocess import final_df_dict
+from src.utils.database import create_duckdb_database, table_exists
 from src.utils.logging_config import get_logger
 
 # * Logging settings
 logger = get_logger(__name__)
+
+DATABASE_FILE = Path(__file__).parents[1] / "data" / "database.duckdb"
+con = duckdb.connect(DATABASE_FILE, read_only=False)
 
 
 def calculate_inflation_score(data: pd.DataFrame) -> pd.Series:
@@ -35,7 +39,9 @@ def calculate_inflation_score(data: pd.DataFrame) -> pd.Series:
 
 
 # %%
-df = final_df_dict["Inflation"].copy()
+if table_exists(con, "Inflation") == False:
+    create_duckdb_database(con, initial_creation=True)
+df = con.sql("SELECT * FROM Inflation").df()
 df.describe().T
 
 # %%

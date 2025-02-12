@@ -2,15 +2,19 @@
 
 import logging
 import sys
+from pathlib import Path
 
+import duckdb
 import numpy as np
 import pandas as pd
 
-from src.preprocess import final_df_dict
 from src.utils import helpers
+from src.utils.database import create_duckdb_database, table_exists
 from src.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
+
+DATABASE_FILE = Path(__file__).parents[1] / "data" / "database.duckdb"
 
 
 def count_correct_responses(data: pd.DataFrame, knowledge_measure: str) -> pd.Series:
@@ -38,12 +42,15 @@ def count_correct_responses(data: pd.DataFrame, knowledge_measure: str) -> pd.Se
 
 
 def create_knowledge_dataframe() -> pd.DataFrame:
+    con = duckdb.connect(DATABASE_FILE, read_only=False)
     dataframes = []
     for i, j in zip(
         ["Finance", "Numeracy", "Inflation"],
         ["financial_literacy", "numeracy", "compound"],
     ):
-        _df = final_df_dict[i].copy()
+        if table_exists(con, i) == False:
+            create_duckdb_database(con, initial_creation=True)
+        _df = con.sql(f"SELECT * FROM {i}").df()
         _df[j] = count_correct_responses(_df, j)
         dataframes.append(_df[["participant.label", j]])
     return helpers.combine_series(dataframes, how="left", on="participant.label")

@@ -1,26 +1,25 @@
 """Test knowledge measures module"""
 
-import logging
-import sys
+from pathlib import Path
 
-import matplotlib.pyplot as plt
-import numpy as np
-import seaborn as sns
-import pandas as pd
-
-from src import calc_opp_costs, discontinuity, process_survey
+import duckdb
 
 from src.knowledge import count_correct_responses, create_knowledge_dataframe
-from src.preprocess import final_df_dict
+from src.utils.database import create_duckdb_database, table_exists
 from src.utils.logging_config import get_logger
 
 from tests.utils import constants
 
 logger = get_logger(__name__)
 
+DATABASE_FILE = Path(__file__).parents[1] / "data" / "database.duckdb"
+con = duckdb.connect(DATABASE_FILE, read_only=False)
+if table_exists(con, "Inflation") == False:
+    create_duckdb_database(con, initial_creation=True)
+
 logger.info("Testing knowledge measures")
 
-df = final_df_dict["Finance"].copy()
+df = con.sql("SELECT * FROM Finance").df()
 measure = "financial_literacy"
 df[measure] = count_correct_responses(df, measure)
 result = df[df["participant.code"] == constants.FIN_LIT_PARTICIPANT_CODE][
@@ -29,7 +28,7 @@ result = df[df["participant.code"] == constants.FIN_LIT_PARTICIPANT_CODE][
 assert result == constants.SCORE
 
 
-df = final_df_dict["Numeracy"].copy()
+df = con.sql("SELECT * FROM Numeracy").df()
 measure = "numeracy"
 df[measure] = count_correct_responses(df, measure)
 result = df[df["participant.code"] == constants.NUMERACY_PARTICIPANT_CODE_2B][
@@ -48,7 +47,7 @@ result = df[df["participant.code"] == constants.NUMERACY_PARTICIPANT_CODE_3_NOT]
 assert result != constants.SCORE
 
 
-df = final_df_dict["Inflation"].copy()
+df = con.sql("SELECT * FROM Inflation").df()
 measure = "compound"
 df[measure] = count_correct_responses(df, measure)
 result = df[df["participant.code"] == constants.COMPOUND_PARTICIPANT_CODE][

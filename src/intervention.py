@@ -2,8 +2,11 @@
 
 import logging
 import sys
+
+from pathlib import Path
 from typing import List, Tuple
 
+import duckdb
 import matplotlib.pyplot as plt
 import pandas as pd
 from scipy import stats
@@ -11,11 +14,13 @@ import seaborn as sns
 
 from src.calc_opp_costs import calculate_opportunity_costs
 from src.discontinuity import purchase_discontinuity
-from src.preprocess import final_df_dict
+from src.utils.database import create_duckdb_database, table_exists
 from src.utils.logging_config import get_logger
 
 # * Logging settings
 logger = get_logger(__name__)
+
+DATABASE_FILE = Path(__file__).parents[1] / "data" / "database.duckdb"
 
 
 # * Define `decision quantity` measure
@@ -252,7 +257,10 @@ def measure_feedback_impact(
 
 def main() -> None:
     """Run script"""
-    df_int = final_df_dict["task_int"].copy()
+    con = duckdb.connect(DATABASE_FILE, read_only=False)
+    if table_exists(con, "task_int") == False:
+        create_duckdb_database(con, initial_creation=True)
+    df_int = con.sql("SELECT * FROM task_int").df()
 
     df_results = calculate_opportunity_costs()
     logging.debug(df_results.shape)

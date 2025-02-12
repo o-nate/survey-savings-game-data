@@ -3,20 +3,25 @@
 import logging
 import sys
 from typing import Any, List, Tuple
+from pathlib import Path
 
+import duckdb
 import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
 import seaborn as sns
 
-from src.preprocess import final_df_dict
 from src.utils.constants import INFLATION_DICT
-from src.utils.logging_config import get_logger
+from src.utils.database import create_duckdb_database, table_exists
 from src.utils.helpers import combine_series
+from src.utils.logging_config import get_logger
 
 # * Logging settings
 logger = get_logger(__name__)
+
+# * Declare duckdb database info
+DATABASE_FILE = Path(__file__).parents[1] / "data" / "database.duckdb"
 
 
 def calculate_estimate_bias(
@@ -202,11 +207,20 @@ def create_survey_df(include_inflation: bool = False) -> pd.DataFrame:
     """Creates a merged dataframe with the estimates (perceptions
     and expectations) and actual inflation in a single dataframe"""
 
+    con = duckdb.connect(DATABASE_FILE, read_only=False)
+    if (
+        table_exists(con, "inf_expectation")
+        and table_exists(con, "inf_estimate")
+        and table_exists(con, "qualitative_expectation")
+        and table_exists(con, "qualitative_estimate")
+    ) == False:
+        create_duckdb_database(con, initial_creation=True)
+
     # * Combine estimates into one dataframe
-    df1 = final_df_dict["inf_expectation"].copy()
-    df2 = final_df_dict["inf_estimate"].copy()
-    df3 = final_df_dict["qualitative_expectation"].copy()
-    df4 = final_df_dict["qualitative_estimate"].copy()
+    df1 = con.sql("SELECT * FROM inf_expectation").df()
+    df2 = con.sql("SELECT * FROM inf_estimate").df()
+    df3 = con.sql("SELECT * FROM qualitative_expectation").df()
+    df4 = con.sql("SELECT * FROM qualitative_estimate").df()
     dfs = [df1, df2, df3, df4]
     df5 = combine_series(
         dfs,

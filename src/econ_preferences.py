@@ -1,17 +1,19 @@
 """Module to process economic preferences data"""
 
-import logging
-import sys
+from pathlib import Path
 
+import duckdb
 import numpy as np
 import pandas as pd
 
-from src.preprocess import final_df_dict
 from src.utils import constants
 from src.utils import helpers
+from src.utils.database import create_duckdb_database, table_exists
 from src.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
+
+DATABASE_FILE = Path(__file__).parents[1] / "data" / "database.duckdb"
 
 
 def count_preference_choices(data: pd.DataFrame, econ_preference: str) -> pd.Series:
@@ -120,9 +122,12 @@ def create_econ_preferences_dataframe() -> pd.DataFrame:
         "lossAversion_switches", "riskPreferences_switches",
         "timePreferences_switches", "wisconsin_PE", "wisconsin_SE"]
     """
+    con = duckdb.connect(DATABASE_FILE, read_only=False)
+    if table_exists(con, "lossAversion") == False:
+        create_duckdb_database(con, initial_creation=True)
     dataframes = []
     for pref in ["lossAversion", "riskPreferences", "timePreferences", "wisconsin"]:
-        _df = final_df_dict[pref].copy()
+        _df = con.sql(f"SELECT * FROM {pref}").df()
         _df[f"{pref}_choice_count"] = count_preference_choices(_df, pref)
         if pref != "wisconsin":
             _df[f"{pref}_switches"] = count_switches(_df, pref)
