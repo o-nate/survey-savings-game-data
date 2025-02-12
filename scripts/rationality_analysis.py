@@ -56,12 +56,12 @@ df_decisions.head()
 
 MAX_RATIONAL_STOCK = 15
 MONTH = 12
-PERSONAS = [
-    "Rational & Accurate",
-    "Rational & Pessimistic",
-    "Irrational & Money Illusioned",
-    "Irrational & Death Averse",
-]  # ["RA", "RP", "IM", "ID"]
+PERSONAS = ["GEGD", "BEGD", "GEBD", "BEBD"]  # [
+#     "Good expectation & Good decision",
+#     "Bad expectation & Good decision",
+#     "Good expectation & Bad decision",
+#     "Bad expectation & Bad decision",
+# ]
 ANNUAL_INTEREST_RATE = ((1 + INTEREST_RATE) ** 12 - 1) * 100
 
 df_personas = df_decisions[df_decisions["Month"].isin([1, MONTH])]
@@ -79,18 +79,18 @@ for max_stock in list(range(MAX_RATIONAL_STOCK)):
     data = df_personas.copy()
 
     CONDITIONS = [
-        # Rational and accurate
+        # Good expectation & Good decision
         (data["finalStock"] <= max_stock)
         & (data["previous_expectation"] <= ANNUAL_INTEREST_RATE),
-        # Rational and pessimistic
+        # ad expectation & Good decision"
         (data["finalStock"] > max_stock)
         & (data["previous_expectation"] > ANNUAL_INTEREST_RATE),
-        # Irrational and money illusioned
-        (data["finalStock"] <= max_stock)
-        & (data["previous_expectation"] > ANNUAL_INTEREST_RATE),
-        # Irrational and death averse
+        # Good expectation & Bad decision
         (data["finalStock"] > max_stock)
         & (data["previous_expectation"] <= ANNUAL_INTEREST_RATE),
+        # Bad expectation & Bad decision
+        (data["finalStock"] <= max_stock)
+        & (data["previous_expectation"] > ANNUAL_INTEREST_RATE),
     ]
 
     data[f"persona_horizon_{max_stock}"] = np.select(
@@ -239,12 +239,12 @@ plt.show()
 
 MAX_RATIONAL_STOCK = 15
 MONTH = 12
-PERSONAS = [
-    "Rational & Accurate",
-    "Rational & Pessimistic",
-    "Irrational & Money Illusioned",
-    "Irrational & Death Averse",
-]  # ["RA", "RP", "IM", "ID"]
+PERSONAS = ["GEGD", "BEGD", "GEBD", "BEBD"]  # [
+#     "Good expectation & Good decision",
+#     "Bad expectation & Good decision",
+#     "Good expectation & Bad decision",
+#     "Bad expectation & Bad decision",
+# ]
 ANNUAL_INTEREST_RATE = ((1 + INTEREST_RATE) ** 12 - 1) * 100
 
 df_personas = df_decisions[df_decisions["Month"] == MONTH]
@@ -259,18 +259,18 @@ for max_stock in list(range(MAX_RATIONAL_STOCK)):
     data = df_personas.copy()
 
     CONDITIONS = [
-        # Rational and accurate
+        # Good expectation & Good decision
         (data["finalStock"] <= max_stock)
         & (data["Quant Perception"] <= ANNUAL_INTEREST_RATE),
-        # Rational and pessimistic
+        # ad expectation & Good decision"
         (data["finalStock"] > max_stock)
         & (data["Quant Perception"] > ANNUAL_INTEREST_RATE),
-        # Irrational and money illusioned
-        (data["finalStock"] <= max_stock)
-        & (data["Quant Perception"] > ANNUAL_INTEREST_RATE),
-        # Irrational and death averse
+        # Good expectation & Bad decision
         (data["finalStock"] > max_stock)
         & (data["Quant Perception"] <= ANNUAL_INTEREST_RATE),
+        # Bad expectation & Bad decision
+        (data["finalStock"] <= max_stock)
+        & (data["Quant Perception"] > ANNUAL_INTEREST_RATE),
     ]
 
     data[f"persona_horizon_{max_stock}"] = np.select(
@@ -400,6 +400,17 @@ sns.histplot(
 )
 
 # %%
+df_personas[df_personas["persona_post_shock"] == "N/A"][
+    [
+        "participant.code",
+        "previous_stock",
+        "finalStock",
+        "Quant Perception",
+        "persona_post_shock",
+    ]
+]
+
+# %%
 MEASURES = ["Quant Perception", "finalStock", "finalSavings_120"]
 df_personas.dropna().groupby(["persona_post_shock", "treatment", "participant.round"])[
     MEASURES
@@ -410,6 +421,17 @@ figure = visualize_persona_results(df_personas, "persona_post_shock", MEASURES)
 plt.tight_layout(rect=[0, 0, 1, 0.95])
 plt.show()
 
+# %%
+df_decisions[df_decisions["Month"].isin([24, 36])].groupby(
+    ["participant.round", "Month"]
+)["finalStock"].describe()
+
+# %%
+sns.histplot(
+    df_decisions[df_decisions["Month"].isin([24, 36])],
+    x="finalStock",
+    hue="participant.round",
+)
 
 # # %%
 # # * Repeat with qualitative expectations
