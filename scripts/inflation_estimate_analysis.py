@@ -1,6 +1,4 @@
 # %%
-import logging
-import sys
 
 import numpy as np
 import pandas as pd
@@ -55,11 +53,8 @@ survey_pivot = survey_pivot.rename(
 )
 
 models = {
-    "Perception": "Quant_Perception ~ Quant_Perception_before + Actual + round",
+    "Perception": "Quant_Perception ~ Quant_Perception_before + Actual",
     "Expectation": "Quant_Expectation ~ Quant_Expectation_before + Quant_Perception + Upcoming",
-    # "Expectation": """
-    # Quant_Expectation ~ Quant_Expectation_before + Quant_Perception + Upcoming + Actual + round
-    # """,
 }
 
 regressions = {}
