@@ -1,5 +1,9 @@
 """Constants for scripts modules"""
 
+from pathlib import Path
+
+DATABASE_FILE = Path(__file__).parents[2] / "data" / "database.duckdb"
+
 QUESTIONNAIRE_MEASURES = [
     "age",
     "gender",
