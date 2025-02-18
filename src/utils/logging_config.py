@@ -20,7 +20,7 @@ LOG_FORMAT_ERROR = (
 )
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
-SUPPRESSED_THIRD_PARTY_LOGS = ["matplotlib", "pandas", "tqdm"]
+SUPPRESSED_THIRD_PARTY_LOGS = ["dotenv", "matplotlib", "pandas", "tqdm"]
 
 # Logging configuration dictionary
 LOGGING_CONFIG = {
@@ -40,7 +40,7 @@ LOGGING_CONFIG = {
         "console": {
             "class": "logging.StreamHandler",
             "formatter": "standard",
-            "level": "INFO",
+            "level": "DEBUG",
         },
         "file": {
             "class": "logging.FileHandler",
