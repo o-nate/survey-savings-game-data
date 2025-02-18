@@ -312,194 +312,56 @@ plt.show()
 # %% [markdown]
 ### Repeat with perceptions
 
-MAX_RATIONAL_STOCK = 15
+MAX_RATIONAL_STOCK = 0
 MONTH = 12
-PERSONAS = ["GPGD", "BPGD", "GPBD", "BPBD"]  # [
-#     "Good expectation & Good decision",
-#     "Bad expectation & Good decision",
-#     "Good expectation & Bad decision",
-#     "Bad expectation & Bad decision",
-# ]
+PERSONAS = ["GPCD", "BPCD", "GPID", "BPID"]
 ANNUAL_INTEREST_RATE = ((1 + INTEREST_RATE) ** 12 - 1) * 100
 
 df_personas = df_decisions[df_decisions["Month"] == MONTH]
 
-_, axs = plt.subplots(3, 5, figsize=(30, 20))
-axs = axs.flatten()
+data = df_personas.copy()
 
-# _, axs2 = plt.subplots(3, 5, figsize=(30, 20))
-# axs2 = axs2.flatten()
+CONDITIONS = [
+    # Good expectation & Good decision
+    (data["finalStock"] <= MAX_RATIONAL_STOCK)
+    & (data["Quant Perception"] <= ANNUAL_INTEREST_RATE),
+    # ad expectation & Good decision"
+    (data["finalStock"] > MAX_RATIONAL_STOCK)
+    & (data["Quant Perception"] > ANNUAL_INTEREST_RATE),
+    # Good expectation & Bad decision
+    (data["finalStock"] > MAX_RATIONAL_STOCK)
+    & (data["Quant Perception"] <= ANNUAL_INTEREST_RATE),
+    # Bad expectation & Bad decision
+    (data["finalStock"] <= MAX_RATIONAL_STOCK)
+    & (data["Quant Perception"] > ANNUAL_INTEREST_RATE),
+]
 
-for max_stock in list(range(MAX_RATIONAL_STOCK)):
-    data = df_personas.copy()
+data["persona_start"] = np.select(
+    condlist=CONDITIONS, choicelist=PERSONAS, default="N/A"
+)
 
-    CONDITIONS = [
-        # Good expectation & Good decision
-        (data["finalStock"] <= max_stock)
-        & (data["Quant Perception"] <= ANNUAL_INTEREST_RATE),
-        # ad expectation & Good decision"
-        (data["finalStock"] > max_stock)
-        & (data["Quant Perception"] > ANNUAL_INTEREST_RATE),
-        # Good expectation & Bad decision
-        (data["finalStock"] > max_stock)
-        & (data["Quant Perception"] <= ANNUAL_INTEREST_RATE),
-        # Bad expectation & Bad decision
-        (data["finalStock"] <= max_stock)
-        & (data["Quant Perception"] > ANNUAL_INTEREST_RATE),
-    ]
+# * Add column for persona based on MAX_RATIONAL_STOCK to track how distribution changes
+df_personas = df_personas.merge(data, how="left")
 
-    data[f"persona_horizon_{max_stock}"] = np.select(
-        condlist=CONDITIONS, choicelist=PERSONAS, default="N/A"
-    )
+print(data[data["participant.round"] == 1].value_counts("persona_start"))
 
-    # * Add column for persona based on max_stock to track how distribution changes
-    df_personas = df_personas.merge(data, how="left")
-
-    print(
-        data[data["participant.round"] == 1].value_counts(
-            f"persona_horizon_{max_stock}"
-        )
-    )
-
-    sns.histplot(
-        data,
-        x=f"persona_horizon_{max_stock}",
-        ax=axs[max_stock],
-        stat="percent",
-        hue="participant.round",
-    )
-    # sns.scatterplot(
-    #     data,
-    #     x="finalStock",
-    #     y="Quant Perception",
-    #     hue=f"persona_horizon_{max_stock}",
-    #     ax=axs2[max_stock],
-    #     style="participant.round",
-    # )
 # %%
 MEASURES = ["Quant Perception", "finalStock", "finalSavings_120"]
-df_personas.dropna().groupby(["persona_horizon_0", "treatment", "participant.round"])[
+df_personas.dropna().groupby(["persona_start", "treatment", "participant.round"])[
     MEASURES
 ].describe()[[(m, me) for m in MEASURES for me in ["count", "mean"]]]
 
 # %%
-figure = visualize_persona_results(df_personas, "persona_horizon_0", MEASURES)
+figure = visualize_persona_results(df_personas, "persona_start", MEASURES)
 plt.tight_layout(rect=[0, 0, 1, 0.95])
 plt.show()
 
-# # %% [markdown]
-# #### Repeat with 12 months after first shock
-# # $(\Delta{\text{S}_{36}} > 0, E_{36} > 25)$ => Good expectations, coherent decision
-# # $(\Delta{\text{S}_{36}} <= 0, E_{36} > 25)$ => Good expectations, incoherent decision
-# # $(\Delta{\text{S}_{36}} <= 0, E_{36} <= 25)$ => Bad expectations, coherent decision
-# # $(\Delta{\text{S}_{36}} > 0, E_{36} <= 25)$ => Bad expectations, incoherent decision
-
-# # %%
-# MONTH = 36
-# CHANGE_IN_STOCK = 0
-# PERSONAS = ["GECD", "GEID", "BECD", "BEIC"]
-# ANNUAL_INTEREST_RATE = ((1 + INTEREST_RATE) ** 12 - 1) * 100
-
-# df_personas = df_decisions[df_decisions["Month"].isin([MONTH - 12, MONTH])]
-# df_personas["previous_stock"] = df_personas.groupby("participant.code")[
-#     "finalStock"
-# ].shift(1)
-# df_personas = df_personas[df_personas["Month"] == MONTH]
-# df_personas["change_in_stock"] = (
-#     df_personas["finalStock"] - df_personas["previous_stock"]
-# )
-
-# _, axs = plt.subplots(1, 1, figsize=(50, 20))
-
-
-# CONDITIONS = [
-#     # Good expectations, coherent decision
-#     (df_personas["Quant Expectation"] > ANNUAL_INTEREST_RATE)
-#     & (df_personas["change_in_stock"] > CHANGE_IN_STOCK),
-#     # Good expectations, incoherent decision
-#     (df_personas["Quant Expectation"] > ANNUAL_INTEREST_RATE)
-#     & (df_personas["change_in_stock"] <= CHANGE_IN_STOCK),
-#     # Bad expectations, coherent decision
-#     (df_personas["Quant Expectation"] <= ANNUAL_INTEREST_RATE)
-#     & (df_personas["change_in_stock"] <= CHANGE_IN_STOCK),
-#     # Bad expectations, incoherent decision
-#     (df_personas["Quant Expectation"] <= ANNUAL_INTEREST_RATE)
-#     & (df_personas["change_in_stock"] > CHANGE_IN_STOCK),
-# ]
-
-# df_personas["persona_post_shock"] = np.select(
-#     condlist=CONDITIONS, choicelist=PERSONAS, default="N/A"
-# )
-
-# # * Add column for persona based on stock to track how distribution changes
-# df_personas = df_personas.merge(df_personas, how="left")
-
-# df_personas = df_personas[df_personas["Month"].isin([MONTH])]
-
-# # # * Drop too N/A subjects
-# # df_personas = df_personas[df_personas["persona_post_shock"] != "N/A"]
-
-# print(
-#     df_personas[df_personas["participant.round"] == 1].value_counts(
-#         "persona_post_shock"
-#     )
-# )
-
-sns.histplot(
-    df_personas,
-    x="persona_post_shock",
-    # ax=axs[stock],
-    stat="percent",
-    hue="participant.round",
-    legend=True,
-)
-
-# %%
-df_personas[df_personas["persona_post_shock"] == "N/A"][
-    [
-        "participant.code",
-        "previous_stock",
-        "finalStock",
-        "Quant Perception",
-        "persona_post_shock",
-    ]
-]
-
-# %%
-MEASURES = ["Quant Perception", "finalStock", "finalSavings_120"]
-df_personas.dropna().groupby(["persona_post_shock", "treatment", "participant.round"])[
-    MEASURES
-].describe()[[(m, me) for m in MEASURES for me in ["count", "mean"]]]
-
-# %%
-figure = visualize_persona_results(df_personas, "persona_post_shock", MEASURES)
-plt.tight_layout(rect=[0, 0, 1, 0.95])
-plt.show()
-
-# %%
-df_decisions[df_decisions["Month"].isin([24, 36])].groupby(
-    ["participant.round", "Month"]
-)["finalStock"].describe()
-
-# %%
-sns.histplot(
-    df_decisions[df_decisions["Month"].isin([24, 36])],
-    x="finalStock",
-    hue="participant.round",
-)
-
-# %%
-# * Repeat with qualitative expectations
-
-QUALITATIVE_EXPECTATION_THRESHOLD = 1
-# TODO Change to Coherent Decision
-PERSONAS = ["GEGD", "BEGD", "GEBD", "BEBD"]
-
-df_personas = df_decisions[
-    (df_decisions["Month"].isin([1, 12])) & (df_decisions["participant.round"] == 1)
-]
-df_personas["previous_expectation"] = df_personas.groupby("participant.code")[
-    "Qual Expectation"
+# %% [markdown]
+## Regressions
+MONTHS = [1] + [m * 12 for m in range(1, 4)]
+df_regression = df_decisions[df_decisions["Month"].isin(MONTHS)]
+df_regression["previous_stock"] = df_regression.groupby("participant.code")[
+    "finalStock"
 ].shift(1)
 
 _, axs = plt.subplots(3, 5, figsize=(30, 20))
