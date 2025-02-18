@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import statsmodels.formula.api as smf
+from statsmodels.iolib.summary2 import summary_col
 
 from src import calc_opp_costs, process_survey
 
@@ -364,45 +366,31 @@ df_regression["previous_stock"] = df_regression.groupby("participant.code")[
     "finalStock"
 ].shift(1)
 
-_, axs = plt.subplots(3, 5, figsize=(30, 20))
-axs = axs.flatten()
+models = {
+    "Quantitative Perception": "finalStock ~ Actual + Quant_Perception + previous_stock + Month",
+    "Quantitative Expectation": "finalStock ~ Actual + Quant_Expectation + previous_stock + Month",
+    "Qualitative Perception": "finalStock ~ Actual + Qual_Perception + previous_stock + Month",
+    "Qualitative Expectation": "finalStock ~ Actual + Qual_Expectation + previous_stock + Month",
+}
 
-# _, axs2 = plt.subplots(3, 5, figsize=(30, 20))
-# axs2 = axs2.flatten()
+regressions = {}
 
-for max_stock in list(range(MAX_RATIONAL_STOCK)):
-    print(max_stock)
-    data = df_personas.copy()
+data = df_regression[df_regression["participant.round"] == 1]
+data = data.rename(
+    columns={
+        "Quant Perception": "Quant_Perception",
+        "Quant Expectation": "Quant_Expectation",
+        "Qual Perception": "Qual_Perception",
+        "Qual Expectation": "Qual_Expectation",
+    },
+)
 
-    CONDITIONS = [
-        # Rational and accurate
-        (data["finalStock"] <= max_stock)
-        & (data["previous_expectation"] <= QUALITATIVE_EXPECTATION_THRESHOLD),
-        # Rational and pessimistic
-        (data["finalStock"] > max_stock)
-        & (data["previous_expectation"] > QUALITATIVE_EXPECTATION_THRESHOLD),
-        # Irrational and money illusioned
-        (data["finalStock"] <= max_stock)
-        & (data["previous_expectation"] > QUALITATIVE_EXPECTATION_THRESHOLD),
-        # Irrational and death averse
-        (data["finalStock"] > max_stock)
-        & (data["previous_expectation"] <= QUALITATIVE_EXPECTATION_THRESHOLD),
-    ]
-
-    data[f"persona_horizon_{max_stock}"] = np.select(
-        condlist=CONDITIONS, choicelist=PERSONAS
-    )
-    data = data[data["Month"].isin([12])]
-
-    print(data.value_counts(f"persona_horizon_{max_stock}"))
-
-    sns.histplot(
-        data, x=f"persona_horizon_{max_stock}", ax=axs[max_stock], stat="percent"
-    )
-    # sns.scatterplot(
-    #     data,
-    #     x="finalStock",
-    #     y="previous_expectation",
-    #     hue=f"persona_horizon_{max_stock}",
-    #     ax=axs2[max_stock],
-    # )
+for estimate, formula in models.items():
+    model = smf.ols(formula=formula, data=data)
+    regressions[estimate] = model.fit()
+results = summary_col(
+    results=list(regressions.values()),
+    stars=True,
+    model_names=list(regressions.keys()),
+)
+results
