@@ -23,6 +23,10 @@ pd.options.display.max_rows = None
 # * Decimal rounding
 pd.set_option("display.float_format", lambda x: "%.2f" % x)
 
+PERSONAS = ["AC", "AI", "IC", "II"]
+ANNUAL_INTEREST_RATE = ((1 + INTEREST_RATE) ** 12 - 1) * 100
+MEASURE = "finalStock"
+
 # %%
 df_opp_cost = calc_opp_costs.calculate_opportunity_costs()
 
@@ -59,15 +63,66 @@ df_decisions["finalSavings_120"] = df_decisions.groupby("participant.code")[
     "finalSavings_120"
 ].bfill()
 
+print(df_decisions.shape)
 df_decisions.head()
 
-# %%
-# * Classify subjects as Rational-Accurate, Rational-Pessimitic, Irrational-MoneyIllusion, Irrational-DeathAverse
+# %% [markdown]
+## Classify subjects per accurate vs. inaccurate estimate and coherent vs. incoherent decision
+
+# %% [markdown]
+### Perceptions
 
 MAX_RATIONAL_STOCK = 0
 MONTH = 12
-PERSONAS = ["GECD", "GEID", "BECD", "BEIC"]
-ANNUAL_INTEREST_RATE = ((1 + INTEREST_RATE) ** 12 - 1) * 100
+ESTIMATE = "Quant Perception"
+
+df_personas = df_decisions[df_decisions["Month"] == MONTH]
+
+data = df_personas.copy()
+
+CONDITIONS = [
+    # Accurate estimate & Coherent decision
+    (data[ESTIMATE] <= ANNUAL_INTEREST_RATE)
+    & (data["finalStock"] <= MAX_RATIONAL_STOCK),
+    # Accurate estimate & Incoherent decision
+    (data[ESTIMATE] <= ANNUAL_INTEREST_RATE)
+    & (data["finalStock"] > MAX_RATIONAL_STOCK),
+    # Inaccurate estimate & Coherent decision
+    (data[ESTIMATE] > ANNUAL_INTEREST_RATE) & (data["finalStock"] > MAX_RATIONAL_STOCK),
+    # Inaccurate estimate & Incoherent decision
+    (data[ESTIMATE] > ANNUAL_INTEREST_RATE)
+    & (data["finalStock"] <= MAX_RATIONAL_STOCK),
+]
+
+data["perception_pattern_12"] = np.select(
+    condlist=CONDITIONS, choicelist=PERSONAS, default="N/A"
+)
+
+# * Add column for persona based on MAX_RATIONAL_STOCK to track how distribution changes
+df_personas = df_personas.merge(data, how="left")
+
+print(df_decisions.shape)
+
+print(data[data["participant.round"] == 1].value_counts("perception_pattern_12"))
+
+# %%
+MEASURES = [ESTIMATE] + [MEASURE]
+df_personas[df_personas["participant.round"] == 1].dropna().groupby(
+    ["perception_pattern_12"]
+)[MEASURES].describe()[[(m, me) for m in MEASURES for me in ["count", "mean"]]]
+
+# %%
+figure = visualize_persona_results(
+    df_personas, "perception_pattern_12", MEASURES, figsize=(20, 10)
+)
+plt.tight_layout(rect=[0, 0, 1, 0.95])
+plt.show()
+
+# %% [markdown]
+### Expectations
+
+MAX_RATIONAL_STOCK = 0
+MONTH = 12
 ESTIMATE = "Quant Expectation"
 
 df_personas = df_decisions[df_decisions["Month"].isin([1, MONTH])]
@@ -75,42 +130,37 @@ df_personas["previous_expectation"] = df_personas.groupby("participant.code")[
     ESTIMATE
 ].shift(1)
 
-data = df_personas.copy()
-
 CONDITIONS = [
-    # Good expectation & coherent decision
-    (data["previous_expectation"] <= ANNUAL_INTEREST_RATE)
-    & (data["finalStock"] <= MAX_RATIONAL_STOCK),
-    # Good expectation & Incoherent decision
-    (data["previous_expectation"] <= ANNUAL_INTEREST_RATE)
-    & (data["finalStock"] > MAX_RATIONAL_STOCK),
-    # Bad expectation & coherent decision"
-    (data["previous_expectation"] > ANNUAL_INTEREST_RATE)
-    & (data["finalStock"] > MAX_RATIONAL_STOCK),
-    # Bad expectation & Bad decision
-    (data["previous_expectation"] > ANNUAL_INTEREST_RATE)
-    & (data["finalStock"] <= MAX_RATIONAL_STOCK),
+    # Accurate estimate & Coherent decision
+    (df_personas["previous_expectation"] <= ANNUAL_INTEREST_RATE)
+    & (df_personas["finalStock"] <= MAX_RATIONAL_STOCK),
+    # Accurate estimate & Incoherent decision
+    (df_personas["previous_expectation"] <= ANNUAL_INTEREST_RATE)
+    & (df_personas["finalStock"] > MAX_RATIONAL_STOCK),
+    # Inaccurate estimate & Coherent decision"
+    (df_personas["previous_expectation"] > ANNUAL_INTEREST_RATE)
+    & (df_personas["finalStock"] > MAX_RATIONAL_STOCK),
+    # Inaccurate estimate & Incoherent decision
+    (df_personas["previous_expectation"] > ANNUAL_INTEREST_RATE)
+    & (df_personas["finalStock"] <= MAX_RATIONAL_STOCK),
 ]
 
-data[f"persona_start"] = np.select(
+df_personas[f"quant_expectation_pattern_12"] = np.select(
     condlist=CONDITIONS, choicelist=PERSONAS, default=np.nan
 )
 
-# * Add column for persona based on MAX_RATIONAL_STOCK to track how distribution changes
-df_personas = df_personas.merge(data, how="left")
-
-data = data[data["Month"].isin([MONTH])]
-
-print(data[data["participant.round"] == 1].value_counts(f"persona_start"))
+print(df_decisions.shape)
 
 # %%
-MEASURES = ["previous_expectation", "finalStock", "finalSavings_120"]
-df_personas.dropna().groupby(["persona_start", "treatment", "participant.round"])[
-    MEASURES
-].describe()[[(m, me) for m in MEASURES for me in ["count", "mean"]]]
+MEASURES = ["previous_expectation"] + [MEASURE]
+df_personas[df_personas["participant.round"] == 1].dropna().groupby(
+    ["quant_expectation_pattern_12"]
+)[MEASURES].describe()[[(m, me) for m in MEASURES for me in ["count", "mean"]]]
 
 # %%
-figure = visualize_persona_results(df_personas, "persona_start", MEASURES)
+figure = visualize_persona_results(
+    df_personas, "quant_expectation_pattern_12", MEASURES
+)
 plt.tight_layout(rect=[0, 0, 1, 0.95])
 plt.show()
 
@@ -119,7 +169,6 @@ plt.show()
 
 MAX_RATIONAL_STOCK = 0
 MONTH = 12
-PERSONAS = ["GECD", "GEID", "BECD", "BEIC"]
 QUALITATIVE_EXPECTATION_THRESHOLD = 1
 ESTIMATE = "Qual Expectation"
 
@@ -131,39 +180,37 @@ df_personas["previous_expectation"] = df_personas.groupby("participant.code")[
 data = df_personas.copy()
 
 CONDITIONS = [
-    # Good expectation & coherent decision
+    # Accurate estimate & Coherent decision
     (data["previous_expectation"] <= QUALITATIVE_EXPECTATION_THRESHOLD)
     & (data["finalStock"] <= MAX_RATIONAL_STOCK),
-    # Good expectation & Incoherent decision
+    # Accurate estimate & Incoherent decision
     (data["previous_expectation"] <= QUALITATIVE_EXPECTATION_THRESHOLD)
     & (data["finalStock"] > MAX_RATIONAL_STOCK),
-    # Bad expectation & coherent decision"
+    # Inaccurate estimate & Coherent decision"
     (data["previous_expectation"] > QUALITATIVE_EXPECTATION_THRESHOLD)
     & (data["finalStock"] > MAX_RATIONAL_STOCK),
-    # Bad expectation & Bad decision
+    # Inaccurate estimate & Incoherent decision
     (data["previous_expectation"] > QUALITATIVE_EXPECTATION_THRESHOLD)
     & (data["finalStock"] <= MAX_RATIONAL_STOCK),
 ]
 
-data[f"persona_start"] = np.select(
+data[f"qual_expectation_pattern_12"] = np.select(
     condlist=CONDITIONS, choicelist=PERSONAS, default=np.nan
 )
 
 # * Add column for persona based on MAX_RATIONAL_STOCK to track how distribution changes
 df_personas = df_personas.merge(data, how="left")
 
-data = data[data["Month"].isin([MONTH])]
-
-print(data[data["participant.round"] == 1].value_counts(f"persona_start"))
+print(df_decisions.shape)
 
 # %%
-MEASURES = ["previous_expectation", "finalStock", "finalSavings_120"]
-df_personas.dropna().groupby(["persona_start", "treatment", "participant.round"])[
-    MEASURES
-].describe()[[(m, me) for m in MEASURES for me in ["count", "mean"]]]
+MEASURES = ["previous_expectation"] + [MEASURE]
+df_personas[df_personas["participant.round"] == 1].dropna().groupby(
+    ["qual_expectation_pattern_12"]
+)[MEASURES].describe()[[(m, me) for m in MEASURES for me in ["count", "mean"]]]
 
 # %%
-figure = visualize_persona_results(df_personas, "persona_start", MEASURES)
+figure = visualize_persona_results(df_personas, "qual_expectation_pattern_12", MEASURES)
 plt.tight_layout(rect=[0, 0, 1, 0.95])
 plt.show()
 
@@ -177,20 +224,16 @@ plt.show()
 # %%
 END_MONTH = 36
 START_MONTH = END_MONTH - 12
-CHANGE_IN_STOCK = 0
-PERSONAS = ["GECD", "GEID", "BECD", "BEIC"]
-ANNUAL_INTEREST_RATE = ((1 + INTEREST_RATE) ** 12 - 1) * 100
+CHANGE_IN_STOCK = 1
 ESTIMATE = "Quant Expectation"
 
-df_personas = df_decisions[
-    df_decisions["Month"].isin([START_MONTH, START_MONTH + 6, END_MONTH])
-]
+df_personas = df_decisions[df_decisions["Month"].isin([START_MONTH, END_MONTH])]
 df_personas["previous_stock"] = df_personas.groupby("participant.code")[
     "finalStock"
-].shift(2)
+].shift(1)
 df_personas["previous_expectation"] = df_personas.groupby("participant.code")[
     ESTIMATE
-].shift(2)
+].shift(1)
 df_personas = df_personas[df_personas["Month"] == END_MONTH]
 df_personas["change_in_stock"] = (
     df_personas["finalStock"] - df_personas["previous_stock"]
@@ -198,44 +241,101 @@ df_personas["change_in_stock"] = (
 
 
 CONDITIONS = [
-    # Good expectations, coherent decision
+    # Accurate estimate & Coherent decision
     (df_personas[ESTIMATE] > ANNUAL_INTEREST_RATE)
     & (df_personas["change_in_stock"] > CHANGE_IN_STOCK),
-    # Good expectations, incoherent decision
+    # Accurate estimate & Incoherent decision
     (df_personas[ESTIMATE] > ANNUAL_INTEREST_RATE)
     & (df_personas["change_in_stock"] <= CHANGE_IN_STOCK),
-    # Bad expectations, coherent decision
+    # Inaccurate estimate & Coherent decision
     (df_personas[ESTIMATE] <= ANNUAL_INTEREST_RATE)
     & (df_personas["change_in_stock"] <= CHANGE_IN_STOCK),
-    # Bad expectations, incoherent decision
+    # Inaccurate estimate & Incoherent decision
     (df_personas[ESTIMATE] <= ANNUAL_INTEREST_RATE)
     & (df_personas["change_in_stock"] > CHANGE_IN_STOCK),
 ]
 
-df_personas["persona_post_shock"] = np.select(
+df_personas["quant_expectation_pattern_36"] = np.select(
     condlist=CONDITIONS, choicelist=PERSONAS, default="N/A"
 )
 
-# * Add column for persona based on stock to track how distribution changes
-df_personas = df_personas.merge(df_personas, how="left")
+print(df_decisions.shape)
 
 # * Drop too N/A subjects
-df_personas = df_personas[df_personas["persona_post_shock"] != "N/A"]
+df_personas = df_personas[df_personas["quant_expectation_pattern_36"] != "N/A"]
 
 print(
     df_personas[df_personas["participant.round"] == 1].value_counts(
-        "persona_post_shock"
+        "quant_expectation_pattern_36"
     )
 )
 
 # %%
-MEASURES = [ESTIMATE, "finalStock", "finalSavings_120"]
-df_personas[df_personas["participant.round"] == 1].dropna().groupby(
-    ["persona_post_shock"]
-)[MEASURES].describe()[[(m, me) for m in MEASURES for me in ["count", "mean"]]]
+MEASURES = [ESTIMATE] + [MEASURE]
+df_personas.groupby(["quant_expectation_pattern_36", "treatment", "participant.round"])[
+    MEASURES
+].describe()[[(m, me) for m in MEASURES for me in ["count", "mean"]]]
 
 # %%
-figure = visualize_persona_results(df_personas, "persona_post_shock", MEASURES)
+figure = visualize_persona_results(
+    df_personas, "quant_expectation_pattern_36", MEASURES
+)
+plt.tight_layout(rect=[0, 0, 1, 0.95])
+plt.show()
+
+# %% [markdown]
+### Perceptions
+END_MONTH = 48
+START_MONTH = 30
+CHANGE_IN_STOCK = 1
+ESTIMATE = "Quant Perception"
+
+df_personas = df_decisions[df_decisions["Month"].isin([START_MONTH, END_MONTH])]
+df_personas["previous_stock"] = df_personas.groupby("participant.code")[
+    "finalStock"
+].shift(1)
+df_personas = df_personas[df_personas["Month"] == END_MONTH]
+df_personas["change_in_stock"] = (
+    df_personas["finalStock"] - df_personas["previous_stock"]
+)
+
+
+CONDITIONS = [
+    # Accurate estimate & Coherent decision
+    (df_personas[ESTIMATE] > ANNUAL_INTEREST_RATE)
+    & (df_personas["change_in_stock"] > CHANGE_IN_STOCK),
+    # Accurate estimate & Incoherent decision
+    (df_personas[ESTIMATE] > ANNUAL_INTEREST_RATE)
+    & (df_personas["change_in_stock"] <= CHANGE_IN_STOCK),
+    # Inaccurate estimate & Coherent decision
+    (df_personas[ESTIMATE] <= ANNUAL_INTEREST_RATE)
+    & (df_personas["change_in_stock"] <= CHANGE_IN_STOCK),
+    # Inaccurate estimate & Incoherent decision
+    (df_personas[ESTIMATE] <= ANNUAL_INTEREST_RATE)
+    & (df_personas["change_in_stock"] > CHANGE_IN_STOCK),
+]
+
+df_personas["quant_perception_pattern_48"] = np.select(
+    condlist=CONDITIONS, choicelist=PERSONAS, default="N/A"
+)
+
+# * Drop too N/A subjects
+df_personas = df_personas[df_personas["quant_perception_pattern_48"] != "N/A"]
+
+print(
+    df_personas[df_personas["participant.round"] == 1].value_counts(
+        "quant_perception_pattern_48"
+    )
+)
+
+# %%
+MEASURES = [ESTIMATE] + [MEASURE]
+df_personas.groupby(["quant_perception_pattern_48", "treatment", "participant.round"])[
+    MEASURES
+].describe()[[(m, me) for m in MEASURES for me in ["count", "mean"]]]
+
+# %%
+figure = visualize_persona_results(df_personas, "quant_perception_pattern_48", MEASURES)
 plt.tight_layout(rect=[0, 0, 1, 0.95])
 plt.show()
 
@@ -250,19 +350,16 @@ plt.show()
 END_MONTH = 36
 START_MONTH = END_MONTH - 12
 CHANGE_IN_STOCK = 0
-PERSONAS = ["GECD", "GEID", "BECD", "BEIC"]
 QUALITATIVE_EXPECTATION_THRESHOLD = 1
 ESTIMATE = "Qual Expectation"
 
-df_personas = df_decisions[
-    df_decisions["Month"].isin([START_MONTH, START_MONTH + 6, END_MONTH])
-]
+df_personas = df_decisions[df_decisions["Month"].isin([START_MONTH, END_MONTH])]
 df_personas["previous_stock"] = df_personas.groupby("participant.code")[
     "finalStock"
-].shift(2)
+].shift(1)
 df_personas["previous_expectation"] = df_personas.groupby("participant.code")[
     ESTIMATE
-].shift(2)
+].shift(1)
 df_personas = df_personas[df_personas["Month"] == END_MONTH]
 df_personas["change_in_stock"] = (
     df_personas["finalStock"] - df_personas["previous_stock"]
@@ -284,77 +381,29 @@ CONDITIONS = [
     & (df_personas["change_in_stock"] > CHANGE_IN_STOCK),
 ]
 
-df_personas["persona_post_shock"] = np.select(
+df_personas["qual_expectation_pattern_36"] = np.select(
     condlist=CONDITIONS, choicelist=PERSONAS, default="N/A"
 )
 
-# * Add column for persona based on stock to track how distribution changes
-df_personas = df_personas.merge(df_personas, how="left")
+# * Add column for persona based on stock to track how distribution change
 
 # * Drop too N/A subjects
-df_personas = df_personas[df_personas["persona_post_shock"] != "N/A"]
+df_personas = df_personas[df_personas["qual_expectation_pattern_36"] != "N/A"]
 
 print(
     df_personas[df_personas["participant.round"] == 1].value_counts(
-        "persona_post_shock"
+        "qual_expectation_pattern_36"
     )
 )
 
 # %%
-MEASURES = [ESTIMATE, "finalStock", "finalSavings_120"]
+MEASURES = [ESTIMATE] + [MEASURE]
 df_personas[df_personas["participant.round"] == 1].dropna().groupby(
-    ["persona_post_shock"]
+    ["qual_expectation_pattern_36"]
 )[MEASURES].describe()[[(m, me) for m in MEASURES for me in ["count", "mean"]]]
 
 # %%
-figure = visualize_persona_results(df_personas, "persona_post_shock", MEASURES)
-plt.tight_layout(rect=[0, 0, 1, 0.95])
-plt.show()
-
-# %% [markdown]
-### Repeat with perceptions
-
-MAX_RATIONAL_STOCK = 0
-MONTH = 12
-PERSONAS = ["GPCD", "BPCD", "GPID", "BPID"]
-ANNUAL_INTEREST_RATE = ((1 + INTEREST_RATE) ** 12 - 1) * 100
-
-df_personas = df_decisions[df_decisions["Month"] == MONTH]
-
-data = df_personas.copy()
-
-CONDITIONS = [
-    # Good expectation & Good decision
-    (data["finalStock"] <= MAX_RATIONAL_STOCK)
-    & (data["Quant Perception"] <= ANNUAL_INTEREST_RATE),
-    # ad expectation & Good decision"
-    (data["finalStock"] > MAX_RATIONAL_STOCK)
-    & (data["Quant Perception"] > ANNUAL_INTEREST_RATE),
-    # Good expectation & Bad decision
-    (data["finalStock"] > MAX_RATIONAL_STOCK)
-    & (data["Quant Perception"] <= ANNUAL_INTEREST_RATE),
-    # Bad expectation & Bad decision
-    (data["finalStock"] <= MAX_RATIONAL_STOCK)
-    & (data["Quant Perception"] > ANNUAL_INTEREST_RATE),
-]
-
-data["persona_start"] = np.select(
-    condlist=CONDITIONS, choicelist=PERSONAS, default="N/A"
-)
-
-# * Add column for persona based on MAX_RATIONAL_STOCK to track how distribution changes
-df_personas = df_personas.merge(data, how="left")
-
-print(data[data["participant.round"] == 1].value_counts("persona_start"))
-
-# %%
-MEASURES = ["Quant Perception", "finalStock", "finalSavings_120"]
-df_personas.dropna().groupby(["persona_start", "treatment", "participant.round"])[
-    MEASURES
-].describe()[[(m, me) for m in MEASURES for me in ["count", "mean"]]]
-
-# %%
-figure = visualize_persona_results(df_personas, "persona_start", MEASURES)
+figure = visualize_persona_results(df_personas, "qual_expectation_pattern_36", MEASURES)
 plt.tight_layout(rect=[0, 0, 1, 0.95])
 plt.show()
 
