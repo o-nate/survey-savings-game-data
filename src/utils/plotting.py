@@ -22,7 +22,7 @@ pd.set_option("display.float_format", lambda x: "%.2f" % x)
 
 
 def visualize_persona_results(
-    data: pd.DataFrame, persona_horizon: str, measures: list[str]
+    data: pd.DataFrame, persona_horizon: str, measures: list[str], **kwargs
 ) -> plt.Figure:
     grouped_df = (
         data.dropna()
@@ -54,7 +54,7 @@ def visualize_persona_results(
             )
 
     # Plot configuration for three columns (Round 1, Round 2, Difference)
-    fig, axs = plt.subplots(len(measures) + 1, 3, figsize=(18, 5 * len(measures)))
+    fig, axs = plt.subplots(len(measures) + 1, 3, **kwargs)
     fig.suptitle(
         "Mean and Count Results by Participant Round and Difference", fontsize=16
     )
@@ -112,7 +112,7 @@ def visualize_persona_results(
                 hue="treatment",
                 ax=axs[idx + 1, 0],
                 dodge=True,
-                legend=False,
+                legend=True,
             )
             axs[idx + 1, 0].set_title("Count: Round 1")
             axs[idx + 1, 0].set_ylabel("Count")

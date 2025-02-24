@@ -100,10 +100,12 @@ data["perception_pattern_12"] = np.select(
 
 # * Add column for persona based on MAX_RATIONAL_STOCK to track how distribution changes
 df_personas = df_personas.merge(data, how="left")
-
+df_decisions = df_decisions.merge(
+    df_personas[["participant.code", "treatment", "perception_pattern_12"]], how="left"
+)
 print(df_decisions.shape)
 
-print(data[data["participant.round"] == 1].value_counts("perception_pattern_12"))
+# print(data[data["participant.round"] == 1].value_counts("perception_pattern_12"))
 
 # %%
 MEASURES = [ESTIMATE] + [MEASURE]
@@ -148,7 +150,10 @@ CONDITIONS = [
 df_personas[f"quant_expectation_pattern_12"] = np.select(
     condlist=CONDITIONS, choicelist=PERSONAS, default=np.nan
 )
-
+df_decisions = df_decisions.merge(
+    df_personas[["participant.code", "treatment", "quant_expectation_pattern_12"]]
+)
+df_decisions = df_decisions[df_decisions["quant_expectation_pattern_12"] != "nan"]
 print(df_decisions.shape)
 
 # %%
@@ -159,7 +164,7 @@ df_personas[df_personas["participant.round"] == 1].dropna().groupby(
 
 # %%
 figure = visualize_persona_results(
-    df_personas, "quant_expectation_pattern_12", MEASURES
+    df_personas, "quant_expectation_pattern_12", MEASURES, figsize=(20, 10)
 )
 plt.tight_layout(rect=[0, 0, 1, 0.95])
 plt.show()
@@ -200,6 +205,10 @@ data[f"qual_expectation_pattern_12"] = np.select(
 
 # * Add column for persona based on MAX_RATIONAL_STOCK to track how distribution changes
 df_personas = df_personas.merge(data, how="left")
+df_decisions = df_decisions.merge(
+    df_personas[["participant.code", "treatment", "qual_expectation_pattern_12"]]
+)
+df_decisions = df_decisions[df_decisions["qual_expectation_pattern_12"] != "nan"]
 
 print(df_decisions.shape)
 
@@ -210,7 +219,9 @@ df_personas[df_personas["participant.round"] == 1].dropna().groupby(
 )[MEASURES].describe()[[(m, me) for m in MEASURES for me in ["count", "mean"]]]
 
 # %%
-figure = visualize_persona_results(df_personas, "qual_expectation_pattern_12", MEASURES)
+figure = visualize_persona_results(
+    df_personas, "qual_expectation_pattern_12", MEASURES, figsize=(20, 10)
+)
 plt.tight_layout(rect=[0, 0, 1, 0.95])
 plt.show()
 
@@ -258,6 +269,11 @@ CONDITIONS = [
 df_personas["quant_expectation_pattern_36"] = np.select(
     condlist=CONDITIONS, choicelist=PERSONAS, default="N/A"
 )
+df_decisions = df_decisions.merge(
+    df_personas[["participant.code", "treatment", "quant_expectation_pattern_36"]]
+)
+df_decisions = df_decisions[df_decisions["quant_expectation_pattern_36"] != "nan"]
+
 
 print(df_decisions.shape)
 
@@ -278,64 +294,8 @@ df_personas.groupby(["quant_expectation_pattern_36", "treatment", "participant.r
 
 # %%
 figure = visualize_persona_results(
-    df_personas, "quant_expectation_pattern_36", MEASURES
+    df_personas, "quant_expectation_pattern_36", MEASURES, figsize=(20, 10)
 )
-plt.tight_layout(rect=[0, 0, 1, 0.95])
-plt.show()
-
-# %% [markdown]
-### Perceptions
-END_MONTH = 48
-START_MONTH = 30
-CHANGE_IN_STOCK = 1
-ESTIMATE = "Quant Perception"
-
-df_personas = df_decisions[df_decisions["Month"].isin([START_MONTH, END_MONTH])]
-df_personas["previous_stock"] = df_personas.groupby("participant.code")[
-    "finalStock"
-].shift(1)
-df_personas = df_personas[df_personas["Month"] == END_MONTH]
-df_personas["change_in_stock"] = (
-    df_personas["finalStock"] - df_personas["previous_stock"]
-)
-
-
-CONDITIONS = [
-    # Accurate estimate & Coherent decision
-    (df_personas[ESTIMATE] > ANNUAL_INTEREST_RATE)
-    & (df_personas["change_in_stock"] > CHANGE_IN_STOCK),
-    # Accurate estimate & Incoherent decision
-    (df_personas[ESTIMATE] > ANNUAL_INTEREST_RATE)
-    & (df_personas["change_in_stock"] <= CHANGE_IN_STOCK),
-    # Inaccurate estimate & Coherent decision
-    (df_personas[ESTIMATE] <= ANNUAL_INTEREST_RATE)
-    & (df_personas["change_in_stock"] <= CHANGE_IN_STOCK),
-    # Inaccurate estimate & Incoherent decision
-    (df_personas[ESTIMATE] <= ANNUAL_INTEREST_RATE)
-    & (df_personas["change_in_stock"] > CHANGE_IN_STOCK),
-]
-
-df_personas["quant_perception_pattern_48"] = np.select(
-    condlist=CONDITIONS, choicelist=PERSONAS, default="N/A"
-)
-
-# * Drop too N/A subjects
-df_personas = df_personas[df_personas["quant_perception_pattern_48"] != "N/A"]
-
-print(
-    df_personas[df_personas["participant.round"] == 1].value_counts(
-        "quant_perception_pattern_48"
-    )
-)
-
-# %%
-MEASURES = [ESTIMATE] + [MEASURE]
-df_personas.groupby(["quant_perception_pattern_48", "treatment", "participant.round"])[
-    MEASURES
-].describe()[[(m, me) for m in MEASURES for me in ["count", "mean"]]]
-
-# %%
-figure = visualize_persona_results(df_personas, "quant_perception_pattern_48", MEASURES)
 plt.tight_layout(rect=[0, 0, 1, 0.95])
 plt.show()
 
@@ -384,6 +344,12 @@ CONDITIONS = [
 df_personas["qual_expectation_pattern_36"] = np.select(
     condlist=CONDITIONS, choicelist=PERSONAS, default="N/A"
 )
+df_decisions = df_decisions.merge(
+    df_personas[["participant.code", "treatment", "qual_expectation_pattern_36"]]
+)
+df_decisions = df_decisions[df_decisions["qual_expectation_pattern_36"] != "nan"]
+
+print(df_decisions.shape)
 
 # * Add column for persona based on stock to track how distribution change
 
@@ -403,8 +369,45 @@ df_personas[df_personas["participant.round"] == 1].dropna().groupby(
 )[MEASURES].describe()[[(m, me) for m in MEASURES for me in ["count", "mean"]]]
 
 # %%
-figure = visualize_persona_results(df_personas, "qual_expectation_pattern_36", MEASURES)
+figure = visualize_persona_results(
+    df_personas, "qual_expectation_pattern_36", MEASURES, figsize=(20, 10)
+)
 plt.tight_layout(rect=[0, 0, 1, 0.95])
+plt.show()
+
+# %% [markdown]
+## Change in patterns
+value_cols = [c for c in df_decisions.columns if "pattern" in c]
+pattern_changes = pd.pivot_table(
+    df_decisions,
+    values=value_cols,
+    index=["participant.label", "treatment"],
+    columns="participant.round",
+    aggfunc="first",
+)
+
+for cols in value_cols:
+    pattern_changes[f"change_{cols}"] = (
+        pattern_changes[(cols, 1.0)] + pattern_changes[(cols, 2.0)]
+    )
+
+# %%
+# Extract unique measures by removing the round numbers
+measures = [c for c in pattern_changes.columns if c[1] is ""]
+
+# Create a subplot for each measure
+fig, axes = plt.subplots(len(measures), 1, figsize=(10, 5 * len(measures)))
+fig.tight_layout(pad=5.0)
+
+# Create a histogram for each measure
+for idx, measure in enumerate(measures):
+    sns.countplot(
+        data=pattern_changes, x=measure, ax=axes[idx], hue="treatment", orient="h"
+    )
+
+    # Set title and labels
+    # axes[idx].set_title(f"{measure}", pad=20)
+
 plt.show()
 
 # %% [markdown]
