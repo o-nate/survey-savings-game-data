@@ -35,7 +35,7 @@ survey_pivot.head()
 # %%
 survey_pivot["Quant_Perception_before"] = survey_pivot.groupby("participant.code")[
     "Quant Perception"
-].shift(-1)
+].shift(1)
 survey_pivot["Quant_Expectation_before"] = survey_pivot.groupby("participant.code")[
     "Quant Expectation"
 ].shift(-1)
