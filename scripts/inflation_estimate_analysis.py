@@ -1,10 +1,12 @@
 # %%
 
+import duckdb
 import numpy as np
 import pandas as pd
 import statsmodels.formula.api as smf
 from statsmodels.iolib.summary2 import summary_col
 
+from scripts.utils import constants
 from src.process_survey import create_survey_df, pivot_inflation_measures
 from src.utils.constants import INFLATION_DICT
 from src.utils.logging_config import get_logger
@@ -14,6 +16,8 @@ logger = get_logger(__name__)
 # * Pandas settings
 pd.options.display.max_columns = None
 pd.options.display.max_rows = None
+
+con = duckdb.connect(constants.DATABASE_FILE, read_only=False)
 
 # %% [markdown]
 ## Estimate expectation and perception of inflation
@@ -63,6 +67,37 @@ for estimate, model in models.items():
     model = smf.ols(
         formula=model,
         data=survey_pivot[survey_pivot["round"] == 1],
+    )
+    regressions[estimate] = model.fit()
+results = summary_col(
+    results=list(regressions.values()),
+    stars=True,
+    model_names=list(regressions.keys()),
+)
+results
+
+# %%
+df_treatment = con.sql("SELECT * FROM decision").df()
+df_treatment.head()
+
+survey_pivot = survey_pivot.merge(df_treatment[["participant.code", "treatment"]])
+
+# %%
+# e_t=α_1 e_(t-12)+α_2 e_t^p+α_3 π_(t+12)+ϵ+α_4 intervention+α_5 avant
+
+models = {
+    "Current": "Quant_Expectation ~ Quant_Expectation_before + Quant_Perception + Actual +\
+        treatment + round",
+    "Future": "Quant_Expectation ~ Quant_Expectation_before + Quant_Perception + Upcoming +\
+        treatment + round",
+}
+
+regressions = {}
+
+for estimate, model in models.items():
+    model = smf.ols(
+        formula=model,
+        data=survey_pivot,
     )
     regressions[estimate] = model.fit()
 results = summary_col(
