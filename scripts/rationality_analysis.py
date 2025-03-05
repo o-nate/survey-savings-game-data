@@ -174,7 +174,7 @@ plt.show()
 
 MAX_RATIONAL_STOCK = 0
 MONTH = 12
-QUALITATIVE_EXPECTATION_THRESHOLD = 1
+QUALITATIVE_EXPECTATION_THRESHOLD = 2
 ESTIMATE = "Qual Expectation"
 
 df_personas = df_decisions[df_decisions["Month"].isin([1, MONTH])]
@@ -466,7 +466,7 @@ for col in pattern_cols:
     pattern_changes[col] = pd.Categorical(pattern_changes[col], PERSONAS)
 
 # %%
-fig, axs = plt.subplots(1, 3, figsize=(35, 10), sharex=True, sharey=True)
+fig, axs = plt.subplots(1, 3, figsize=(15, 4), sharex=True, sharey=True)
 for i, treatment in zip(range(3), ["Intervention 2", "Intervention 1", "Control"]):
     axs[i] = sns.histplot(
         pattern_changes[pattern_changes.index.isin([treatment], level=1)],
@@ -480,7 +480,7 @@ fig.suptitle("Perception, t=12")
 plt.show()
 
 # %%
-fig, axs = plt.subplots(1, 3, figsize=(35, 10), sharex=True, sharey=True)
+fig, axs = plt.subplots(1, 3, figsize=(15, 4), sharex=True, sharey=True)
 for i, treatment in zip(range(3), ["Intervention 2", "Intervention 1", "Control"]):
     axs[i] = sns.histplot(
         pattern_changes[pattern_changes.index.isin([treatment], level=1)],
@@ -494,7 +494,7 @@ fig.suptitle("Quant Expectation, t=12")
 plt.show()
 
 # %%
-fig, axs = plt.subplots(1, 3, figsize=(35, 10), sharex=True, sharey=True)
+fig, axs = plt.subplots(1, 3, figsize=(15, 4), sharex=True, sharey=True)
 for i, treatment in zip(range(3), ["Intervention 2", "Intervention 1", "Control"]):
     axs[i] = sns.histplot(
         pattern_changes[pattern_changes.index.isin([treatment], level=1)],
@@ -509,7 +509,7 @@ plt.show()
 
 
 # %%
-fig, axs = plt.subplots(1, 3, figsize=(35, 10), sharex=True, sharey=True)
+fig, axs = plt.subplots(1, 3, figsize=(15, 4), sharex=True, sharey=True)
 for i, treatment in zip(range(3), ["Intervention 2", "Intervention 1", "Control"]):
     axs[i] = sns.histplot(
         pattern_changes[pattern_changes.index.isin([treatment], level=1)],
@@ -523,7 +523,7 @@ fig.suptitle("Quant Expectation, t=36")
 plt.show()
 
 # %%
-fig, axs = plt.subplots(1, 3, figsize=(35, 10), sharex=True, sharey=True)
+fig, axs = plt.subplots(1, 3, figsize=(15, 4), sharex=True, sharey=True)
 for i, treatment in zip(range(3), ["Intervention 2", "Intervention 1", "Control"]):
     axs[i] = sns.histplot(
         pattern_changes[pattern_changes.index.isin([treatment], level=1)],
@@ -534,4 +534,32 @@ for i, treatment in zip(range(3), ["Intervention 2", "Intervention 1", "Control"
     )
     axs[i].set_title(treatment)
 fig.suptitle("Qual Expectation, t=36")
+plt.show()
+
+# %%
+fig, axs = plt.subplots(1, 3, figsize=(15, 4), sharex=True, sharey=True)
+for i, treatment in zip(range(3), ["Intervention 2", "Intervention 1", "Control"]):
+    axs[i] = sns.histplot(
+        pattern_changes[pattern_changes.index.isin([treatment], level=1)],
+        x=("quant_expectation_pattern_36", 1),
+        y=("qual_expectation_pattern_36", 1),
+        ax=axs[i],
+        cbar=True,
+    )
+    axs[i].set_title(treatment)
+fig.suptitle("Quant->Qual Expectation, t=36")
+plt.show()
+
+# %%
+fig, axs = plt.subplots(1, 3, figsize=(15, 4), sharex=True, sharey=True)
+for i, treatment in zip(range(3), ["Intervention 2", "Intervention 1", "Control"]):
+    axs[i] = sns.histplot(
+        pattern_changes[pattern_changes.index.isin([treatment], level=1)],
+        x=("quant_expectation_pattern_36", 2),
+        y=("qual_expectation_pattern_36", 2),
+        ax=axs[i],
+        cbar=True,
+    )
+    axs[i].set_title(treatment)
+fig.suptitle("Quant->Qual Expectation, t=36, Round 2")
 plt.show()
