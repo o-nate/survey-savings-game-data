@@ -1,9 +1,13 @@
 """Plotting functions"""
 
+from typing import Any, Tuple
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+
+from matplotlib.axes import Axes
 
 from src import calc_opp_costs, process_survey
 
@@ -158,6 +162,131 @@ def visualize_persona_results(
 
     plt.tight_layout(rect=[0, 0, 1, 0.95])
     return fig
+
+
+def plot_2d_histogram(
+    df: pd.DataFrame,
+    pattern_cols: list[Tuple[str, Any]],
+    plot_title: str,
+    **kwargs: dict[str, Any],
+) -> Axes:
+    """
+    Create a 2D histogram with cell count labels using Seaborn heatmap.
+
+    Parameters:
+    -----------
+    df : pandas.DataFrame
+        The input DataFrame containing the data to be plotted.
+    pattern_cols : list
+        List of two column tuples to use for x and y axes.
+        Each tuple should contain (column_name, round_number).
+    plot_title : str
+        Title of the plot to be displayed.
+    **kwargs : dict
+        Additional keyword arguments passed to sns.heatmap():
+
+        Commonly used kwargs include:
+        - annot (bool): If True, write the data value in each cell.
+        - cbar (bool): If True, plot a colorbar.
+        - cmap (str): Colormap name (e.g., "Blues", "YlGnBu").
+        - ax (matplotlib.axes.Axes): Axes to plot on.
+        - fmt (str): Format of the annotations (default 'd' for integers).
+        - linewidths (float): Width of the lines that will divide each cell.
+        - linecolor (str): Color of the lines dividing cells.
+        - square (bool): If True, make the plot square.
+        - vmin (float): Minimum value of the colormap.
+        - vmax (float): Maximum value of the colormap.
+
+    Returns:
+    --------
+    matplotlib.axes.Axes
+        The axes object containing the 2D histogram heatmap.
+
+    Example:
+    --------
+    fig, axs = plt.subplots(1, 2, figsize=(12, 5))
+    ax1 = plot_2d_histogram(
+        pattern_changes,
+        [("perception_pattern_12", 1.0), ("perception_pattern_12", 2.0)],
+        "Perception Pattern Changes",
+        annot=True,
+        cbar=False,
+        cmap="Blues",
+        ax=axs[0]
+    )
+    """
+    # Ensure fmt is set to "d" for integer formatting
+    kwargs.setdefault("fmt", "d")
+
+    # Create cross-tabulation to get the counts
+    crosstab = pd.crosstab(df[pattern_cols[0]], df[pattern_cols[1]])
+
+    # Create the heatmap
+    ax = sns.heatmap(crosstab, fmt="d", **kwargs)  # Integer format
+
+    # Set titles and labels
+    ax.set_title(plot_title, fontsize=14)
+    ax.set_xlabel(f"Round {pattern_cols[0][1]}", fontsize=12)
+    ax.set_ylabel(f"Round {pattern_cols[1][1]}", fontsize=12)
+
+    return ax
+
+
+def annotate_2d_histogram(
+    ax: Axes,
+    x_col: Tuple[str, Any],
+    y_col: Tuple[str, Any],
+    data: pd.DataFrame,
+    **kwargs: dict[str, Any],
+) -> Axes:
+    """
+    Annotate each cell in a 2D histogram with the actual number of observations.
+
+    Parameters:
+    -----------
+    ax : matplotlib.axes.Axes
+        The axes containing the 2D histogram to be annotated
+    x_col : tuple
+        The column and value for the x-axis
+    y_col : tuple
+        The column and value for the y-axis
+    data : pandas.DataFrame
+        The original DataFrame used to create the histogram
+    **kwargs : dict, optional
+        Additional keyword arguments passed to ax.text() for customizing annotations.
+        Commonly used kwargs include:
+        - fontweight (str): Font weight of the annotation. Default is 'bold'.
+            Example: fontweight='bold', fontweight='normal'
+        - color (str): Color of the annotation text. Default is 'darkred'.
+            Example: color='black', color='red', color='#FF0000'
+        - fontsize (int): Size of the annotation text. Default is 8.
+            Example: fontsize=8, fontsize=10, fontsize=12
+
+    Returns:
+    --------
+    matplotlib.axes.Axes
+        The annotated axes
+    """
+    # Extract the specific column values
+    x_data = data.loc[:, x_col]
+    y_data = data.loc[:, y_col]
+
+    # Create cross-tabulation to get exact counts
+    crosstab = pd.crosstab(x_data, y_data)
+
+    # Iterate through the cross-tabulation
+    for (x_val, y_val), count in crosstab.stack().items():
+        if count > 0:
+            ax.text(
+                x_val,
+                y_val,
+                str(count),
+                ha="center",
+                va="center",
+                **kwargs,
+            )
+
+    return ax
 
 
 def main() -> None:
