@@ -7,7 +7,11 @@ import statsmodels.formula.api as smf
 from statsmodels.iolib.summary2 import summary_col
 
 from scripts.utils import constants
-from src.process_survey import create_survey_df, pivot_inflation_measures
+from src.process_survey import (
+    create_survey_df,
+    include_inflation_measures,
+    pivot_inflation_measures,
+)
 from src.utils.constants import INFLATION_DICT
 from src.utils.logging_config import get_logger
 
@@ -34,6 +38,7 @@ inf["participant.inflation"] = np.where(
 
 # %%
 survey_pivot = pivot_inflation_measures(df_survey)
+survey_pivot = include_inflation_measures(survey_pivot)
 survey_pivot.head()
 
 # %%
@@ -90,6 +95,10 @@ models = {
         treatment + round",
     "Future": "Quant_Expectation ~ Quant_Expectation_before + Quant_Perception + Upcoming +\
         treatment + round",
+    "Bias Current": "Expectation_bias ~ Quant_Expectation_before + Quant_Perception + Actual +\
+        treatment + round",
+    "Bias Future": "Expectation_bias ~ Quant_Expectation_before + Quant_Perception + Upcoming +\
+        treatment + round",
 }
 
 regressions = {}
@@ -98,6 +107,29 @@ for estimate, model in models.items():
     model = smf.ols(
         formula=model,
         data=survey_pivot,
+    )
+    regressions[estimate] = model.fit()
+results = summary_col(
+    results=list(regressions.values()),
+    stars=True,
+    model_names=list(regressions.keys()),
+)
+results
+
+# %%
+models = {
+    "Current": "Quant_Expectation ~ (Quant_Expectation_before + Quant_Perception + Actual) * treatment * round",
+    "Future": "Quant_Expectation ~ (Quant_Expectation_before + Quant_Perception + Upcoming) * treatment * round",
+    "Bias Current": "Expectation_bias ~ (Quant_Expectation_before + Quant_Perception + Actual) * treatment * round",
+    "Bias Future": "Expectation_bias ~ (Quant_Expectation_before + Quant_Perception + Upcoming) * treatment * round",
+}
+
+regressions = {}
+
+for estimate, model in models.items():
+    model = smf.ols(
+        formula=model,
+        data=survey_pivot[survey_pivot["Month"] == 36],
     )
     regressions[estimate] = model.fit()
 results = summary_col(
