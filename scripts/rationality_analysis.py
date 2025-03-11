@@ -29,14 +29,12 @@ MEASURE = "finalStock"
 
 
 def create_performance_measures_table(
-    data: pd.DataFrame, inflation_measure: str
+    data: pd.DataFrame, inflation_measure: str, performance_measures: list[str]
 ) -> pd.DataFrame:
 
-    df_final_stats = data.groupby(inflation_measure)[
-        ["early_%", "late_%", "excess_%", "sreal_%"]
-    ].describe()
+    df_final_stats = data.groupby(inflation_measure)[performance_measures].describe()
 
-    final_stats_count = df_final_stats[("early_%", "count")].rename(
+    final_stats_count = df_final_stats[(performance_measures[0], "count")].rename(
         "percentage_participants"
     )
     final_stats_percent = final_stats_count / final_stats_count.sum()
@@ -405,25 +403,31 @@ plt.show()
 
 # %% [markdown]
 ## Change in patterns
-value_cols = [c for c in df_decisions.columns if "pattern" in c]
+value_cols = [c for c in df_decisions.columns if ("pattern" in c) or ("_%" in c)]
 pattern_changes = pd.pivot_table(
-    df_decisions,
+    df_decisions[df_decisions["Month"] == 120],
     values=value_cols,
     index=["participant.label", "treatment"],
     columns="participant.round",
     aggfunc="first",
 )
 
-for cols in value_cols:
-    pattern_changes[f"change_{cols}"] = (
-        pattern_changes[(cols, 1.0)] + pattern_changes[(cols, 2.0)]
-    )
+for col in value_cols:
+    if "pattern" in col:
+        pattern_changes[f"change_{col}"] = (
+            pattern_changes[(col, 1.0)] + pattern_changes[(col, 2.0)]
+        )
+    if "_%" in col:
+        pattern_changes[f"change_{col}"] = (
+            pattern_changes[(col, 2.0)] - pattern_changes[(col, 1.0)]
+        )
 
 # %%
 pattern_cols = [c for c in pattern_changes.columns if c[1] != ""]
 
 for col in pattern_cols:
-    pattern_changes[col] = pd.Categorical(pattern_changes[col], PERSONAS)
+    if "_%" not in col[0]:
+        pattern_changes[col] = pd.Categorical(pattern_changes[col], PERSONAS)
 
 # %%
 fig, axs = plt.subplots(1, 3, figsize=(15, 4), sharex=True, sharey=True)
@@ -520,6 +524,7 @@ performance_results = create_performance_measures_table(
         (df_decisions["Month"] == 120) & (df_decisions["participant.round"] == 1)
     ],
     "perception_pattern_12",
+    ["early_%", "sreal_%", "late_%", "excess_%"],
 )
 performance_results
 
@@ -530,6 +535,7 @@ performance_results = create_performance_measures_table(
         (df_decisions["Month"] == 120) & (df_decisions["participant.round"] == 1)
     ],
     "qual_expectation_pattern_12",
+    ["early_%", "sreal_%", "late_%", "excess_%"],
 )
 performance_results
 
@@ -540,6 +546,7 @@ performance_results = create_performance_measures_table(
         (df_decisions["Month"] == 120) & (df_decisions["participant.round"] == 1)
     ],
     "quant_expectation_pattern_36",
+    ["early_%", "sreal_%", "late_%", "excess_%"],
 )
 performance_results
 
@@ -550,6 +557,52 @@ performance_results = create_performance_measures_table(
         (df_decisions["Month"] == 120) & (df_decisions["participant.round"] == 1)
     ],
     "qual_expectation_pattern_36",
+    ["early_%", "sreal_%", "late_%", "excess_%"],
+)
+performance_results
+
+# %% [markdown]
+## Performance measures, changes in pattern
+### Perceptions `t=12`
+cols = [c for c in pattern_changes.columns if c[1] == ""]
+df_changes = pattern_changes[cols].reset_index()
+df_changes.columns = df_changes.columns.droplevel(level=1)
+
+performance_cols = [
+    c for c in df_changes.columns if ("_%" in c) and ("finalSavings" not in c)
+]
+
+performance_results = create_performance_measures_table(
+    df_changes,
+    "change_perception_pattern_12",
+    performance_cols,
+)
+performance_results
+
+# %% [markdown]
+### Qualitative `t=12`
+performance_results = create_performance_measures_table(
+    df_changes,
+    "change_qual_expectation_pattern_12",
+    performance_cols,
+)
+performance_results
+
+# %% [markdown]
+### Quantitative `t=36`
+performance_results = create_performance_measures_table(
+    df_changes,
+    "change_quant_expectation_pattern_36",
+    performance_cols,
+)
+performance_results
+
+# %% [markdown]
+### Qualitative `t=36`
+performance_results = create_performance_measures_table(
+    df_changes,
+    "change_qual_expectation_pattern_36",
+    [c for c in df_changes.columns if ("_%" in c) and ("finalSavings" not in c)],
 )
 performance_results
 
