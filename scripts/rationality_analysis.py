@@ -27,6 +27,34 @@ PERSONAS = ["AC", "AI", "IC", "II"]
 ANNUAL_INTEREST_RATE = ((1 + INTEREST_RATE) ** 12 - 1) * 100
 MEASURE = "finalStock"
 
+
+def create_performance_measures_table(
+    data: pd.DataFrame, inflation_measure: str
+) -> pd.DataFrame:
+
+    df_final_stats = data.groupby(inflation_measure)[
+        ["early_%", "late_%", "excess_%", "sreal_%"]
+    ].describe()
+
+    final_stats_count = df_final_stats[("early_%", "count")].rename(
+        "percentage_participants"
+    )
+    final_stats_percent = final_stats_count / final_stats_count.sum()
+
+    stats_cols = [c for c in df_final_stats.columns if "mean" in c[1]]
+    df_final_stats = df_final_stats[stats_cols].reset_index()
+    df_final_stats.columns = df_final_stats.columns.droplevel(level=1)
+    df_final_stats = df_final_stats.assign(
+        percentage_participants=final_stats_percent.values
+    )
+    stats_cols = df_final_stats.columns.to_list()
+    stats_cols.insert(1, stats_cols.pop())
+    df_final_stats = df_final_stats[stats_cols]
+    df_final_stats[stats_cols[1:]] = df_final_stats[stats_cols[1:]] * 100
+
+    return df_final_stats
+
+
 # %%
 df_opp_cost = calc_opp_costs.calculate_opportunity_costs()
 
@@ -483,6 +511,47 @@ for i, treatment in zip(range(3), ["Intervention 2", "Intervention 1", "Control"
 
 fig.suptitle("Qual Expectation, t=36")
 plt.show()
+
+# %% [markdown]
+## Performance measures
+### Perceptions `t=12`
+performance_results = create_performance_measures_table(
+    df_decisions[
+        (df_decisions["Month"] == 120) & (df_decisions["participant.round"] == 1)
+    ],
+    "perception_pattern_12",
+)
+performance_results
+
+# %% [markdown]
+### Qualitative `t=12`
+performance_results = create_performance_measures_table(
+    df_decisions[
+        (df_decisions["Month"] == 120) & (df_decisions["participant.round"] == 1)
+    ],
+    "qual_expectation_pattern_12",
+)
+performance_results
+
+# %% [markdown]
+### Quantitative `t=36`
+performance_results = create_performance_measures_table(
+    df_decisions[
+        (df_decisions["Month"] == 120) & (df_decisions["participant.round"] == 1)
+    ],
+    "quant_expectation_pattern_36",
+)
+performance_results
+
+# %% [markdown]
+### Qualitative `t=36`
+performance_results = create_performance_measures_table(
+    df_decisions[
+        (df_decisions["Month"] == 120) & (df_decisions["participant.round"] == 1)
+    ],
+    "qual_expectation_pattern_36",
+)
+performance_results
 
 # %% [markdown]
 ## Regressions
